@@ -25,7 +25,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_INFO' });
+      const fetchPageInfo = async () =>
+        chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_INFO' });
+
+      let response;
+
+      try {
+        response = await fetchPageInfo();
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes('Receiving end does not exist')
+        ) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js'],
+            });
+            response = await fetchPageInfo();
+          } catch (injectError) {
+            console.error(injectError);
+            status.textContent = '콘텐츠 스크립트를 주입할 수 없습니다.';
+            return;
+          }
+        } else {
+          throw error;
+        }
+      }
 
       if (response?.title) {
         status.textContent = '탭 정보 가져오기 완료!';
@@ -35,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       console.error(error);
-      status.textContent = '메시지를 전송할 수 없습니다.';
+      status.textContent = '탭 정보를 불러오는 중 문제가 발생했습니다.';
     }
   });
 });

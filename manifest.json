@@ -3,7 +3,7 @@
   "name": "My Chrome Extension",
   "version": "1.0",
   "description": "현재 탭의 제목과 주소를 빠르게 확인할 수 있는 확장 프로그램",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "scripting"],
   "background": {
     "service_worker": "background.js"
   },
@@ -16,5 +16,6 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "host_permissions": ["<all_urls>"]
 }
