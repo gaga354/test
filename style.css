@@ -1,5 +1,57 @@
 body {
-    width: 200px;
-    padding: 10px;
-    font-family: Arial, sans-serif;
+  width: 280px;
+  margin: 0;
+  padding: 16px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+button:hover {
+  background-color: #1e40af;
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.details {
+  margin: 0;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #e2e8f0;
+  color: #0f172a;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
 }

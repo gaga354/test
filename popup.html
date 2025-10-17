@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Chrome Extension</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <h1>현재 탭 정보</h1>
+      <p class="description">버튼을 눌러 현재 탭의 제목과 주소를 확인해보세요.</p>
+      <button id="action-button">정보 가져오기</button>
+      <p class="status" id="status"></p>
+      <pre class="details" id="page-details"></pre>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

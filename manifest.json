@@ -1,1 +1,20 @@
-{\n  "manifest_version": 3,\n  "name": "My Chrome Extension",\n  "version": "1.0",\n  "description": "A basic Chrome extension.",\n  "permissions": [],\n  "background": {\n    "service_worker": "background.js"\n  },\n  "action": {\n    "default_popup": "popup.html",\n    "default_icon": "icon.png"\n  },\n  "icons": {\n    "48": "icon.png"\n  }\n}
+{
+  "manifest_version": 3,
+  "name": "My Chrome Extension",
+  "version": "1.0",
+  "description": "현재 탭의 제목과 주소를 빠르게 확인할 수 있는 확장 프로그램",
+  "permissions": ["tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Popup",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
