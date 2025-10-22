@@ -486,7 +486,7 @@ function initCanvas() {
   overlayCanvas.height = canvasHeight;
 
   const ctx = previewCanvas.getContext('2d');
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = defaultBgColorInput.value;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   applyPreviewZoom();
@@ -713,23 +713,6 @@ document.getElementById('fps').addEventListener('change', (e) => {
   updateOutputInfo();
 });
 
-// 미리보기 컨트롤 이벤트 리스너
-playPreviewBtn.addEventListener('click', togglePreviewAnimation);
-zoomInBtn.addEventListener('click', zoomIn);
-zoomOutBtn.addEventListener('click', zoomOut);
-zoomResetBtn.addEventListener('click', zoomReset);
-fitScreenBtn.addEventListener('click', fitToScreen);
-
-showGridBtn.addEventListener('change', (e) => {
-  showGrid = e.target.checked;
-  updateOverlay();
-});
-
-showSafeAreaBtn.addEventListener('change', (e) => {
-  showSafeArea = e.target.checked;
-  updateOverlay();
-});
-
 // 애니메이션 재생/일시정지 토글
 function togglePreviewAnimation() {
   if (images.length === 0) return;
@@ -765,7 +748,7 @@ function startPreviewAnimation() {
     const ctx = previewCanvas.getContext('2d');
     const firstImage = images[0];
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = defaultBgColorInput.value;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     drawImage(ctx, firstImage, progress);
@@ -790,6 +773,23 @@ loadDefaultSettings();
 loadPresetList();
 initCanvas();
 updateOutputInfo();
+
+// 미리보기 컨트롤 이벤트 리스너
+playPreviewBtn.addEventListener('click', togglePreviewAnimation);
+zoomInBtn.addEventListener('click', zoomIn);
+zoomOutBtn.addEventListener('click', zoomOut);
+zoomResetBtn.addEventListener('click', zoomReset);
+fitScreenBtn.addEventListener('click', fitToScreen);
+
+showGridBtn.addEventListener('change', (e) => {
+  showGrid = e.target.checked;
+  updateOverlay();
+});
+
+showSafeAreaBtn.addEventListener('change', (e) => {
+  showSafeArea = e.target.checked;
+  updateOverlay();
+});
 
 // 이미지 업로드
 imageInput.addEventListener('change', (e) => {
@@ -1420,8 +1420,8 @@ function updatePreview() {
   const ctx = previewCanvas.getContext('2d');
   const firstImage = images[0];
 
-  // 배경을 검은색으로
-  ctx.fillStyle = '#000';
+  // 배경색 적용
+  ctx.fillStyle = defaultBgColorInput.value;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // 첫 번째 이미지 그리기 (애니메이션 중간 지점으로 미리보기)
@@ -1931,7 +1931,7 @@ async function generateVideo() {
       const animProgress = frames > 1 ? frame / (frames - 1) : 0;
 
       // 배경 그리기
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = defaultBgColorInput.value;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       // 이미지 그리기 (애니메이션 포함)
@@ -1959,7 +1959,7 @@ async function generateVideo() {
           const transProgress = transFrames > 1 ? frame / (transFrames - 1) : 0;
 
           // 배경 그리기
-          ctx.fillStyle = '#000';
+          ctx.fillStyle = defaultBgColorInput.value;
           ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
           // 전환 효과 렌더링
