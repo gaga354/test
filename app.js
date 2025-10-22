@@ -15,10 +15,108 @@ const progressSection = document.getElementById('progress');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
+// 공통 설정 DOM 요소
+const defaultDurationInput = document.getElementById('defaultDuration');
+const defaultWidthInput = document.getElementById('defaultWidth');
+const defaultHeightInput = document.getElementById('defaultHeight');
+const defaultXInput = document.getElementById('defaultX');
+const defaultYInput = document.getElementById('defaultY');
+const defaultFitInput = document.getElementById('defaultFit');
+const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
+const applyToAllBtn = document.getElementById('applyToAllBtn');
+const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+
 // 캔버스 설정
 let canvasWidth = 1920;
 let canvasHeight = 1080;
 let fps = 30;
+
+// 기본 이미지 설정 (초기값)
+const INITIAL_DEFAULTS = {
+  duration: 3,
+  width: 100,
+  height: 100,
+  x: 0,
+  y: 0,
+  fit: 'cover'
+};
+
+// localStorage에서 기본값 로드
+function loadDefaultSettings() {
+  const saved = localStorage.getItem('imageDefaultSettings');
+  if (saved) {
+    try {
+      const defaults = JSON.parse(saved);
+      defaultDurationInput.value = defaults.duration;
+      defaultWidthInput.value = defaults.width;
+      defaultHeightInput.value = defaults.height;
+      defaultXInput.value = defaults.x;
+      defaultYInput.value = defaults.y;
+      defaultFitInput.value = defaults.fit;
+    } catch (e) {
+      console.error('기본값 로드 실패:', e);
+    }
+  }
+}
+
+// localStorage에 기본값 저장
+function saveDefaultSettings() {
+  const defaults = {
+    duration: parseFloat(defaultDurationInput.value),
+    width: parseFloat(defaultWidthInput.value),
+    height: parseFloat(defaultHeightInput.value),
+    x: parseFloat(defaultXInput.value),
+    y: parseFloat(defaultYInput.value),
+    fit: defaultFitInput.value
+  };
+  localStorage.setItem('imageDefaultSettings', JSON.stringify(defaults));
+  alert('기본값이 저장되었습니다!');
+}
+
+// 현재 기본값 가져오기
+function getDefaultSettings() {
+  return {
+    duration: parseFloat(defaultDurationInput.value),
+    width: parseFloat(defaultWidthInput.value),
+    height: parseFloat(defaultHeightInput.value),
+    x: parseFloat(defaultXInput.value),
+    y: parseFloat(defaultYInput.value),
+    fit: defaultFitInput.value
+  };
+}
+
+// 기본값 초기화
+function resetDefaultSettings() {
+  if (confirm('기본값을 초기값으로 복원하시겠습니까?')) {
+    defaultDurationInput.value = INITIAL_DEFAULTS.duration;
+    defaultWidthInput.value = INITIAL_DEFAULTS.width;
+    defaultHeightInput.value = INITIAL_DEFAULTS.height;
+    defaultXInput.value = INITIAL_DEFAULTS.x;
+    defaultYInput.value = INITIAL_DEFAULTS.y;
+    defaultFitInput.value = INITIAL_DEFAULTS.fit;
+    localStorage.removeItem('imageDefaultSettings');
+    alert('기본값이 초기값으로 복원되었습니다!');
+  }
+}
+
+// 모든 이미지에 기본값 적용
+function applyDefaultsToAll() {
+  if (images.length === 0) return;
+  if (confirm(`모든 이미지(${images.length}개)에 현재 기본값을 적용하시겠습니까?`)) {
+    const defaults = getDefaultSettings();
+    images.forEach(img => {
+      img.duration = defaults.duration;
+      img.width = defaults.width;
+      img.height = defaults.height;
+      img.x = defaults.x;
+      img.y = defaults.y;
+      img.fit = defaults.fit;
+    });
+    renderImageList();
+    updatePreview();
+    alert('모든 이미지에 기본값이 적용되었습니다!');
+  }
+}
 
 // 캔버스 초기화
 function initCanvas() {
@@ -29,6 +127,8 @@ function initCanvas() {
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 }
 
+// 초기화
+loadDefaultSettings();
 initCanvas();
 
 // 캔버스 설정 변경 이벤트
@@ -63,20 +163,22 @@ function loadImage(file) {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
+      const defaults = getDefaultSettings();
       const imageData = {
         id: imageIdCounter++,
         src: e.target.result,
         img: img,
-        duration: 3, // 초
-        width: 100, // 퍼센트
-        height: 100, // 퍼센트
-        x: 0, // 퍼센트
-        y: 0, // 퍼센트
-        fit: 'cover' // cover, contain, fill
+        duration: defaults.duration,
+        width: defaults.width,
+        height: defaults.height,
+        x: defaults.x,
+        y: defaults.y,
+        fit: defaults.fit
       };
       images.push(imageData);
       renderImageList();
       updateGenerateButton();
+      updateApplyToAllButton();
       updatePreview();
     };
     img.src = e.target.result;
@@ -197,6 +299,7 @@ function renderImageList() {
       images = images.filter(i => i.id !== id);
       renderImageList();
       updateGenerateButton();
+      updateApplyToAllButton();
       updatePreview();
     });
   });
@@ -278,6 +381,11 @@ function updateGenerateButton() {
   generateBtn.disabled = images.length === 0;
 }
 
+// "모든 이미지에 적용" 버튼 상태 업데이트
+function updateApplyToAllButton() {
+  applyToAllBtn.disabled = images.length === 0;
+}
+
 // 모두 지우기
 clearBtn.addEventListener('click', () => {
   if (images.length === 0) return;
@@ -285,9 +393,15 @@ clearBtn.addEventListener('click', () => {
     images = [];
     renderImageList();
     updateGenerateButton();
+    updateApplyToAllButton();
     initCanvas();
   }
 });
+
+// 공통 설정 버튼 이벤트
+saveDefaultsBtn.addEventListener('click', saveDefaultSettings);
+applyToAllBtn.addEventListener('click', applyDefaultsToAll);
+resetDefaultsBtn.addEventListener('click', resetDefaultSettings);
 
 // 영상 생성
 generateBtn.addEventListener('click', async () => {
