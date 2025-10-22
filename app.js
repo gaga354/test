@@ -8,12 +8,22 @@ const imageList = document.getElementById('imageList');
 const generateBtn = document.getElementById('generateBtn');
 const clearBtn = document.getElementById('clearBtn');
 const previewCanvas = document.getElementById('previewCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const canvasContainer = document.getElementById('canvasContainer');
 const canvasWidthInput = document.getElementById('canvasWidth');
 const canvasHeightInput = document.getElementById('canvasHeight');
 const fpsInput = document.getElementById('fps');
 const progressSection = document.getElementById('progress');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
+
+// 미리보기 컨트롤 요소
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
+const zoomResetBtn = document.getElementById('zoomResetBtn');
+const fitScreenBtn = document.getElementById('fitScreenBtn');
+const showGridBtn = document.getElementById('showGridBtn');
+const showSafeAreaBtn = document.getElementById('showSafeAreaBtn');
 
 // 공통 설정 DOM 요소
 const defaultDurationInput = document.getElementById('defaultDuration');
@@ -36,10 +46,49 @@ const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
 const applyToAllBtn = document.getElementById('applyToAllBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
 
-// 캔버스 설정
-let canvasWidth = 1920;
-let canvasHeight = 1080;
-let fps = 30;
+// 출력 설정
+const resolutionPresets = {
+  'mobile': { width: 720, height: 1280, name: '모바일 (세로)' },
+  'hd': { width: 1280, height: 720, name: 'HD' },
+  'fullhd': { width: 1920, height: 1080, name: 'Full HD' },
+  '4k': { width: 3840, height: 2160, name: '4K' },
+  'instagram-square': { width: 1080, height: 1080, name: '인스타그램 정사각형' },
+  'instagram-story': { width: 1080, height: 1920, name: '인스타그램 스토리' },
+  'youtube': { width: 1920, height: 1080, name: 'YouTube' },
+  'tiktok': { width: 1080, height: 1920, name: 'TikTok' },
+  'custom': { width: 1920, height: 1080, name: '사용자 정의' }
+};
+
+const qualityPresets = {
+  'low': { bitrate: 2000000, name: '저화질 (2 Mbps)' },
+  'medium': { bitrate: 5000000, name: '중간 (5 Mbps)' },
+  'high': { bitrate: 10000000, name: '고화질 (10 Mbps)' },
+  'ultra': { bitrate: 20000000, name: '최고화질 (20 Mbps)' }
+};
+
+const outputConfig = {
+  resolution: {
+    preset: 'fullhd',
+    width: 1920,
+    height: 1080,
+    lockAspectRatio: true
+  },
+  quality: {
+    preset: 'medium',
+    bitrate: 5000000
+  },
+  fps: 30
+};
+
+// 하위 호환성을 위한 getter
+let canvasWidth = outputConfig.resolution.width;
+let canvasHeight = outputConfig.resolution.height;
+let fps = outputConfig.fps;
+
+// 미리보기 줌 상태
+let previewZoom = 1.0;
+let showGrid = false;
+let showSafeArea = false;
 
 // 기본 이미지 설정 (초기값)
 const INITIAL_DEFAULTS = {
@@ -49,6 +98,7 @@ const INITIAL_DEFAULTS = {
   x: 0,
   y: 0,
   fit: 'cover',
+  rotation: 0,
   bgColor: '#000000',
   bgEnabled: true,
   borderEnabled: false,
@@ -58,7 +108,18 @@ const INITIAL_DEFAULTS = {
   shadowColor: '#000000',
   shadowBlur: 10,
   shadowX: 5,
-  shadowY: 5
+  shadowY: 5,
+  filters: {
+    brightness: 100,
+    contrast: 100,
+    saturate: 100,
+    grayscale: 0,
+    sepia: 0,
+    blur: 0,
+    hue: 0,
+    invert: 0,
+    opacity: 100
+  }
 };
 
 // localStorage에서 기본값 로드
@@ -192,31 +253,253 @@ function applyDefaultsToAll() {
 function initCanvas() {
   previewCanvas.width = canvasWidth;
   previewCanvas.height = canvasHeight;
+  overlayCanvas.width = canvasWidth;
+  overlayCanvas.height = canvasHeight;
+
   const ctx = previewCanvas.getContext('2d');
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  applyPreviewZoom();
+  updateOverlay();
 }
+
+// 줌 적용
+function applyPreviewZoom() {
+  const displayWidth = canvasWidth * previewZoom;
+  const displayHeight = canvasHeight * previewZoom;
+
+  previewCanvas.style.width = `${displayWidth}px`;
+  previewCanvas.style.height = `${displayHeight}px`;
+  overlayCanvas.style.width = `${displayWidth}px`;
+  overlayCanvas.style.height = `${displayHeight}px`;
+
+  zoomResetBtn.textContent = `${Math.round(previewZoom * 100)}%`;
+}
+
+// 줌 인
+function zoomIn() {
+  previewZoom = Math.min(previewZoom + 0.25, 3.0);
+  applyPreviewZoom();
+}
+
+// 줌 아웃
+function zoomOut() {
+  previewZoom = Math.max(previewZoom - 0.25, 0.25);
+  applyPreviewZoom();
+}
+
+// 줌 리셋
+function zoomReset() {
+  previewZoom = 1.0;
+  applyPreviewZoom();
+}
+
+// 화면에 맞춤
+function fitToScreen() {
+  const containerWidth = canvasContainer.parentElement.clientWidth - 40; // padding 고려
+  const containerHeight = window.innerHeight * 0.6; // 화면의 60% 높이
+
+  const widthRatio = containerWidth / canvasWidth;
+  const heightRatio = containerHeight / canvasHeight;
+
+  previewZoom = Math.min(widthRatio, heightRatio, 1.0); // 최대 100%
+  applyPreviewZoom();
+}
+
+// 오버레이 업데이트
+function updateOverlay() {
+  const ctx = overlayCanvas.getContext('2d');
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+  // 그리드 그리기
+  if (showGrid) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+
+    const gridSize = 50; // 50px 간격
+
+    // 세로선
+    for (let x = 0; x <= canvasWidth; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvasHeight);
+      ctx.stroke();
+    }
+
+    // 가로선
+    for (let y = 0; y <= canvasHeight; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvasWidth, y);
+      ctx.stroke();
+    }
+
+    // 중앙선 강조
+    ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+    ctx.lineWidth = 2;
+
+    // 세로 중앙선
+    ctx.beginPath();
+    ctx.moveTo(canvasWidth / 2, 0);
+    ctx.lineTo(canvasWidth / 2, canvasHeight);
+    ctx.stroke();
+
+    // 가로 중앙선
+    ctx.beginPath();
+    ctx.moveTo(0, canvasHeight / 2);
+    ctx.lineTo(canvasWidth, canvasHeight / 2);
+    ctx.stroke();
+  }
+
+  // 안전 영역 그리기 (10% 마진)
+  if (showSafeArea) {
+    const marginX = canvasWidth * 0.1;
+    const marginY = canvasHeight * 0.1;
+    const safeWidth = canvasWidth * 0.8;
+    const safeHeight = canvasHeight * 0.8;
+
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 5]);
+    ctx.strokeRect(marginX, marginY, safeWidth, safeHeight);
+    ctx.setLineDash([]);
+
+    // 안전 영역 라벨
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('안전 영역 (90%)', marginX + 10, marginY + 20);
+  }
+}
+
+// 출력 설정 관련 함수
+function updateOutputConfig() {
+  canvasWidth = outputConfig.resolution.width;
+  canvasHeight = outputConfig.resolution.height;
+  fps = outputConfig.fps;
+
+  initCanvas();
+  updateOutputInfo();
+  updatePreview();
+}
+
+function updateOutputInfo() {
+  const { width, height } = outputConfig.resolution;
+  const totalDuration = images.reduce((sum, img) => sum + img.duration, 0);
+  const bitrate = outputConfig.quality.bitrate;
+  const estimatedSize = (bitrate * totalDuration / 8 / 1024 / 1024).toFixed(2);
+
+  // 종횡비 계산 (최대공약수)
+  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  const divisor = gcd(width, height);
+  const aspectRatio = `${width/divisor}:${height/divisor}`;
+
+  document.getElementById('outputSizeDisplay').textContent = `${width} × ${height} px`;
+  document.getElementById('aspectRatioDisplay').textContent = aspectRatio;
+  document.getElementById('totalDurationDisplay').textContent = `${totalDuration.toFixed(1)}초`;
+  document.getElementById('estimatedSizeDisplay').textContent = `${estimatedSize} MB`;
+}
+
+// 해상도 프리셋 변경
+document.getElementById('resolutionPreset').addEventListener('change', (e) => {
+  const preset = e.target.value;
+  outputConfig.resolution.preset = preset;
+
+  if (preset === 'custom') {
+    document.getElementById('customResolutionInputs').style.display = 'flex';
+  } else {
+    document.getElementById('customResolutionInputs').style.display = 'none';
+    const config = resolutionPresets[preset];
+    outputConfig.resolution.width = config.width;
+    outputConfig.resolution.height = config.height;
+    updateOutputConfig();
+  }
+});
+
+// 커스텀 너비 변경
+document.getElementById('customWidth').addEventListener('change', (e) => {
+  const newWidth = parseInt(e.target.value);
+
+  if (outputConfig.resolution.lockAspectRatio) {
+    const aspectRatio = outputConfig.resolution.width / outputConfig.resolution.height;
+    outputConfig.resolution.width = newWidth;
+    outputConfig.resolution.height = Math.round(newWidth / aspectRatio);
+    document.getElementById('customHeight').value = outputConfig.resolution.height;
+  } else {
+    outputConfig.resolution.width = newWidth;
+  }
+
+  updateOutputConfig();
+});
+
+// 커스텀 높이 변경
+document.getElementById('customHeight').addEventListener('change', (e) => {
+  const newHeight = parseInt(e.target.value);
+
+  if (outputConfig.resolution.lockAspectRatio) {
+    const aspectRatio = outputConfig.resolution.width / outputConfig.resolution.height;
+    outputConfig.resolution.height = newHeight;
+    outputConfig.resolution.width = Math.round(newHeight * aspectRatio);
+    document.getElementById('customWidth').value = outputConfig.resolution.width;
+  } else {
+    outputConfig.resolution.height = newHeight;
+  }
+
+  updateOutputConfig();
+});
+
+// 가로/세로 전환
+document.getElementById('swapDimensions').addEventListener('click', () => {
+  const temp = outputConfig.resolution.width;
+  outputConfig.resolution.width = outputConfig.resolution.height;
+  outputConfig.resolution.height = temp;
+
+  document.getElementById('customWidth').value = outputConfig.resolution.width;
+  document.getElementById('customHeight').value = outputConfig.resolution.height;
+
+  updateOutputConfig();
+});
+
+// 비율 고정 토글
+document.getElementById('lockAspectRatio').addEventListener('change', (e) => {
+  outputConfig.resolution.lockAspectRatio = e.target.checked;
+});
+
+// 품질 변경
+document.getElementById('qualityPreset').addEventListener('change', (e) => {
+  const preset = e.target.value;
+  outputConfig.quality.preset = preset;
+  outputConfig.quality.bitrate = qualityPresets[preset].bitrate;
+  updateOutputInfo();
+});
+
+// FPS 변경
+document.getElementById('fps').addEventListener('change', (e) => {
+  outputConfig.fps = parseInt(e.target.value);
+  fps = outputConfig.fps;
+  updateOutputInfo();
+});
+
+// 미리보기 컨트롤 이벤트 리스너
+zoomInBtn.addEventListener('click', zoomIn);
+zoomOutBtn.addEventListener('click', zoomOut);
+zoomResetBtn.addEventListener('click', zoomReset);
+fitScreenBtn.addEventListener('click', fitToScreen);
+
+showGridBtn.addEventListener('change', (e) => {
+  showGrid = e.target.checked;
+  updateOverlay();
+});
+
+showSafeAreaBtn.addEventListener('change', (e) => {
+  showSafeArea = e.target.checked;
+  updateOverlay();
+});
 
 // 초기화
 loadDefaultSettings();
 initCanvas();
-
-// 캔버스 설정 변경 이벤트
-canvasWidthInput.addEventListener('change', () => {
-  canvasWidth = parseInt(canvasWidthInput.value);
-  initCanvas();
-  updatePreview();
-});
-
-canvasHeightInput.addEventListener('change', () => {
-  canvasHeight = parseInt(canvasHeightInput.value);
-  initCanvas();
-  updatePreview();
-});
-
-fpsInput.addEventListener('change', () => {
-  fps = parseInt(fpsInput.value);
-});
+updateOutputInfo();
 
 // 이미지 업로드
 imageInput.addEventListener('change', (e) => {
@@ -244,6 +527,7 @@ function loadImage(file) {
         x: defaults.x,
         y: defaults.y,
         fit: defaults.fit,
+        rotation: 0,
         bgColor: defaults.bgColor,
         bgEnabled: defaults.bgEnabled,
         borderEnabled: defaults.borderEnabled,
@@ -253,12 +537,14 @@ function loadImage(file) {
         shadowColor: defaults.shadowColor,
         shadowBlur: defaults.shadowBlur,
         shadowX: defaults.shadowX,
-        shadowY: defaults.shadowY
+        shadowY: defaults.shadowY,
+        filters: defaults.filters ? { ...defaults.filters } : { ...INITIAL_DEFAULTS.filters }
       };
       images.push(imageData);
       renderImageList();
       updateGenerateButton();
       updateApplyToAllButton();
+      updateOutputInfo();
       updatePreview();
     };
     img.src = e.target.result;
@@ -303,6 +589,15 @@ function renderImageList() {
             <option value="fill" ${imageData.fit === 'fill' ? 'selected' : ''}>늘리기 (Fill)</option>
           </select>
         </div>
+        <div class="control-group rotation-controls">
+          <label>회전</label>
+          <div class="rotation-buttons">
+            <button type="button" class="rotate-btn ${imageData.rotation === 0 ? 'active' : ''}" data-id="${imageData.id}" data-angle="0" title="0°">↑</button>
+            <button type="button" class="rotate-btn ${imageData.rotation === 90 ? 'active' : ''}" data-id="${imageData.id}" data-angle="90" title="90°">→</button>
+            <button type="button" class="rotate-btn ${imageData.rotation === 180 ? 'active' : ''}" data-id="${imageData.id}" data-angle="180" title="180°">↓</button>
+            <button type="button" class="rotate-btn ${imageData.rotation === 270 ? 'active' : ''}" data-id="${imageData.id}" data-angle="270" title="270°">←</button>
+          </div>
+        </div>
         <div class="control-group">
           <label>배경색</label>
           <input type="color" class="bg-color-input" value="${imageData.bgColor}" data-id="${imageData.id}">
@@ -319,7 +614,54 @@ function renderImageList() {
           <input type="number" class="shadow-blur-input" value="${imageData.shadowBlur}" min="0" max="100" data-id="${imageData.id}" placeholder="블러">
         </div>
       </div>
-      <button class="remove-btn" data-id="${imageData.id}">삭제</button>
+      <div class="filter-controls">
+        <h4 class="filter-title">🎨 필터 효과</h4>
+        <div class="filter-grid">
+          <div class="filter-item">
+            <label>밝기: <span class="filter-value">${imageData.filters?.brightness || 100}%</span></label>
+            <input type="range" class="filter-brightness" value="${imageData.filters?.brightness || 100}" min="0" max="200" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>대비: <span class="filter-value">${imageData.filters?.contrast || 100}%</span></label>
+            <input type="range" class="filter-contrast" value="${imageData.filters?.contrast || 100}" min="0" max="200" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>채도: <span class="filter-value">${imageData.filters?.saturate || 100}%</span></label>
+            <input type="range" class="filter-saturate" value="${imageData.filters?.saturate || 100}" min="0" max="200" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>흑백: <span class="filter-value">${imageData.filters?.grayscale || 0}%</span></label>
+            <input type="range" class="filter-grayscale" value="${imageData.filters?.grayscale || 0}" min="0" max="100" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>세피아: <span class="filter-value">${imageData.filters?.sepia || 0}%</span></label>
+            <input type="range" class="filter-sepia" value="${imageData.filters?.sepia || 0}" min="0" max="100" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>블러: <span class="filter-value">${imageData.filters?.blur || 0}px</span></label>
+            <input type="range" class="filter-blur" value="${imageData.filters?.blur || 0}" min="0" max="20" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>색조: <span class="filter-value">${imageData.filters?.hue || 0}°</span></label>
+            <input type="range" class="filter-hue" value="${imageData.filters?.hue || 0}" min="0" max="360" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>반전: <span class="filter-value">${imageData.filters?.invert || 0}%</span></label>
+            <input type="range" class="filter-invert" value="${imageData.filters?.invert || 0}" min="0" max="100" data-id="${imageData.id}">
+          </div>
+          <div class="filter-item">
+            <label>불투명도: <span class="filter-value">${imageData.filters?.opacity || 100}%</span></label>
+            <input type="range" class="filter-opacity" value="${imageData.filters?.opacity || 100}" min="0" max="100" data-id="${imageData.id}">
+          </div>
+        </div>
+        <button class="reset-filters-btn" data-id="${imageData.id}" type="button">🔄 필터 초기화</button>
+      </div>
+      <div class="image-actions">
+        <button class="move-up-btn" data-id="${imageData.id}" type="button" ${index === 0 ? 'disabled' : ''}>⬆️ 위로</button>
+        <button class="move-down-btn" data-id="${imageData.id}" type="button" ${index === images.length - 1 ? 'disabled' : ''}>⬇️ 아래로</button>
+        <button class="duplicate-btn" data-id="${imageData.id}" type="button">📋 복제</button>
+        <button class="remove-btn" data-id="${imageData.id}" type="button">🗑️ 삭제</button>
+      </div>
     `;
     imageList.appendChild(item);
   });
@@ -477,6 +819,90 @@ function renderImageList() {
     });
   });
 
+  // 필터 이벤트 리스너
+  const filterInputs = [
+    { class: '.filter-brightness', prop: 'brightness', suffix: '%' },
+    { class: '.filter-contrast', prop: 'contrast', suffix: '%' },
+    { class: '.filter-saturate', prop: 'saturate', suffix: '%' },
+    { class: '.filter-grayscale', prop: 'grayscale', suffix: '%' },
+    { class: '.filter-sepia', prop: 'sepia', suffix: '%' },
+    { class: '.filter-blur', prop: 'blur', suffix: 'px' },
+    { class: '.filter-hue', prop: 'hue', suffix: '°' },
+    { class: '.filter-invert', prop: 'invert', suffix: '%' },
+    { class: '.filter-opacity', prop: 'opacity', suffix: '%' }
+  ];
+
+  filterInputs.forEach(({ class: className, prop, suffix }) => {
+    document.querySelectorAll(className).forEach(input => {
+      input.addEventListener('input', (e) => {
+        const id = parseInt(e.target.dataset.id);
+        const img = images.find(i => i.id === id);
+        if (img) {
+          if (!img.filters) img.filters = { ...INITIAL_DEFAULTS.filters };
+          img.filters[prop] = parseFloat(e.target.value);
+
+          // 값 표시 업데이트
+          const valueSpan = e.target.previousElementSibling.querySelector('.filter-value');
+          if (valueSpan) {
+            valueSpan.textContent = `${img.filters[prop]}${suffix}`;
+          }
+
+          updatePreview();
+        }
+      });
+    });
+  });
+
+  // 필터 초기화 버튼
+  document.querySelectorAll('.reset-filters-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const img = images.find(i => i.id === id);
+      if (img && confirm('이 이미지의 모든 필터를 초기화하시겠습니까?')) {
+        img.filters = { ...INITIAL_DEFAULTS.filters };
+        renderImageList();
+        updatePreview();
+      }
+    });
+  });
+
+  // 회전 버튼
+  document.querySelectorAll('.rotate-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const angle = parseInt(e.target.dataset.angle);
+      const img = images.find(i => i.id === id);
+      if (img) {
+        img.rotation = angle;
+        renderImageList();
+        updatePreview();
+      }
+    });
+  });
+
+  // 이동 버튼
+  document.querySelectorAll('.move-up-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      moveImageUp(id);
+    });
+  });
+
+  document.querySelectorAll('.move-down-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      moveImageDown(id);
+    });
+  });
+
+  // 복제 버튼
+  document.querySelectorAll('.duplicate-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      duplicateImage(id);
+    });
+  });
+
   document.querySelectorAll('.remove-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = parseInt(e.target.dataset.id);
@@ -484,6 +910,7 @@ function renderImageList() {
       renderImageList();
       updateGenerateButton();
       updateApplyToAllButton();
+      updateOutputInfo();
       updatePreview();
     });
   });
@@ -509,7 +936,7 @@ function updatePreview() {
 
 // 이미지 그리기 함수
 function drawImage(ctx, imageData) {
-  const { img, width, height, x, y, fit, bgColor, bgEnabled, borderEnabled, borderColor, borderWidth, shadowEnabled, shadowColor, shadowBlur, shadowX, shadowY } = imageData;
+  const { img, width, height, x, y, fit, rotation, bgColor, bgEnabled, borderEnabled, borderColor, borderWidth, shadowEnabled, shadowColor, shadowBlur, shadowX, shadowY, filters } = imageData;
 
   // 캔버스 크기에 대한 퍼센트 계산
   const targetWidth = (canvasWidth * width) / 100;
@@ -557,6 +984,18 @@ function drawImage(ctx, imageData) {
     drawY = offsetY + (targetHeight - drawHeight) / 2;
   }
 
+  // 회전 적용
+  ctx.save();
+
+  if (rotation && rotation !== 0) {
+    const centerX = drawX + drawWidth / 2;
+    const centerY = drawY + drawHeight / 2;
+
+    ctx.translate(centerX, centerY);
+    ctx.rotate((rotation * Math.PI) / 180);
+    ctx.translate(-centerX, -centerY);
+  }
+
   // 그림자 설정
   if (shadowEnabled) {
     ctx.shadowColor = shadowColor;
@@ -571,8 +1010,27 @@ function drawImage(ctx, imageData) {
     ctx.fillRect(drawX, drawY, drawWidth, drawHeight);
   }
 
+  // 필터 적용
+  if (filters) {
+    const filterString = [
+      `brightness(${filters.brightness || 100}%)`,
+      `contrast(${filters.contrast || 100}%)`,
+      `saturate(${filters.saturate || 100}%)`,
+      `grayscale(${filters.grayscale || 0}%)`,
+      `sepia(${filters.sepia || 0}%)`,
+      `blur(${filters.blur || 0}px)`,
+      `hue-rotate(${filters.hue || 0}deg)`,
+      `invert(${filters.invert || 0}%)`,
+      `opacity(${filters.opacity || 100}%)`
+    ].join(' ');
+    ctx.filter = filterString;
+  }
+
   // 이미지 그리기
   ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+  // 필터 리셋
+  ctx.filter = 'none';
 
   // 그림자 리셋
   if (shadowEnabled) {
@@ -588,6 +1046,60 @@ function drawImage(ctx, imageData) {
     ctx.lineWidth = borderWidth;
     ctx.strokeRect(drawX, drawY, drawWidth, drawHeight);
   }
+
+  ctx.restore();
+}
+
+// 이미지 위로 이동
+function moveImageUp(imageId) {
+  const index = images.findIndex(img => img.id === imageId);
+  if (index <= 0) return; // 이미 맨 위거나 찾을 수 없음
+
+  // 배열에서 위치 교환
+  [images[index - 1], images[index]] = [images[index], images[index - 1]];
+
+  renderImageList();
+  updatePreview();
+}
+
+// 이미지 아래로 이동
+function moveImageDown(imageId) {
+  const index = images.findIndex(img => img.id === imageId);
+  if (index < 0 || index >= images.length - 1) return; // 이미 맨 아래거나 찾을 수 없음
+
+  // 배열에서 위치 교환
+  [images[index], images[index + 1]] = [images[index + 1], images[index]];
+
+  renderImageList();
+  updatePreview();
+}
+
+// 이미지 복제
+function duplicateImage(imageId) {
+  const original = images.find(img => img.id === imageId);
+  if (!original) return;
+
+  // 깊은 복사
+  const duplicate = {
+    ...original,
+    id: imageIdCounter++,
+    src: original.src,
+    img: original.img,
+    // 객체들도 복사
+    filters: original.filters ? { ...original.filters } : undefined,
+    text: original.text ? { ...original.text } : undefined,
+    animation: original.animation ? { ...original.animation } : undefined,
+    transition: original.transition ? { ...original.transition } : undefined
+  };
+
+  // 원본 다음에 삽입
+  const originalIndex = images.indexOf(original);
+  images.splice(originalIndex + 1, 0, duplicate);
+
+  renderImageList();
+  updateApplyToAllButton();
+  updateOutputInfo();
+  alert('이미지가 복제되었습니다!');
 }
 
 // 생성 버튼 상태 업데이트
@@ -608,6 +1120,7 @@ clearBtn.addEventListener('click', () => {
     renderImageList();
     updateGenerateButton();
     updateApplyToAllButton();
+    updateOutputInfo();
     initCanvas();
   }
 });
@@ -617,12 +1130,20 @@ saveDefaultsBtn.addEventListener('click', saveDefaultSettings);
 applyToAllBtn.addEventListener('click', applyDefaultsToAll);
 resetDefaultsBtn.addEventListener('click', resetDefaultSettings);
 
+// 영상 생성 관련 변수
+let isGenerating = false;
+let generationCancelled = false;
+
 // 영상 생성
 generateBtn.addEventListener('click', async () => {
   if (images.length === 0) return;
 
+  isGenerating = true;
+  generationCancelled = false;
+
   progressSection.style.display = 'block';
-  generateBtn.disabled = true;
+  generateBtn.style.display = 'none';
+  document.getElementById('cancelGenerationBtn').style.display = 'inline-block';
   progressBar.style.width = '0%';
   progressText.textContent = '영상 생성 준비 중...';
 
@@ -632,23 +1153,38 @@ generateBtn.addEventListener('click', async () => {
     console.error('영상 생성 실패:', error);
     alert('영상 생성에 실패했습니다: ' + error.message);
   } finally {
-    progressSection.style.display = 'none';
-    generateBtn.disabled = false;
+    isGenerating = false;
+    generateBtn.style.display = 'inline-block';
+    document.getElementById('cancelGenerationBtn').style.display = 'none';
+
+    if (!generationCancelled) {
+      setTimeout(() => {
+        progressSection.style.display = 'none';
+      }, 2000);
+    }
+  }
+});
+
+// 영상 생성 취소
+document.getElementById('cancelGenerationBtn').addEventListener('click', () => {
+  if (confirm('영상 생성을 취소하시겠습니까?')) {
+    generationCancelled = true;
+    progressText.textContent = '취소 중...';
   }
 });
 
 // 영상 생성 함수
 async function generateVideo() {
   const canvas = document.createElement('canvas');
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  canvas.width = outputConfig.resolution.width;
+  canvas.height = outputConfig.resolution.height;
   const ctx = canvas.getContext('2d');
 
   // MediaRecorder 설정
-  const stream = canvas.captureStream(fps);
+  const stream = canvas.captureStream(outputConfig.fps);
   const mediaRecorder = new MediaRecorder(stream, {
     mimeType: 'video/webm;codecs=vp9',
-    videoBitsPerSecond: 5000000 // 5 Mbps
+    videoBitsPerSecond: outputConfig.quality.bitrate
   });
 
   const chunks = [];
@@ -659,6 +1195,14 @@ async function generateVideo() {
   };
 
   mediaRecorder.onstop = () => {
+    if (generationCancelled) {
+      progressText.textContent = '영상 생성이 취소되었습니다.';
+      setTimeout(() => {
+        progressSection.style.display = 'none';
+      }, 2000);
+      return;
+    }
+
     const blob = new Blob(chunks, { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
 
@@ -675,17 +1219,17 @@ async function generateVideo() {
   mediaRecorder.start();
 
   // 각 이미지를 순차적으로 렌더링
-  const frameDelay = 1000 / fps;
+  const frameDelay = 1000 / outputConfig.fps;
   let currentTime = 0;
   let totalDuration = images.reduce((sum, img) => sum + img.duration, 0);
 
-  for (let i = 0; i < images.length; i++) {
+  for (let i = 0; i < images.length && !generationCancelled; i++) {
     const imageData = images[i];
-    const frames = Math.floor(imageData.duration * fps);
+    const frames = Math.floor(imageData.duration * outputConfig.fps);
 
     progressText.textContent = `이미지 ${i + 1}/${images.length} 처리 중...`;
 
-    for (let frame = 0; frame < frames; frame++) {
+    for (let frame = 0; frame < frames && !generationCancelled; frame++) {
       // 배경 그리기
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);

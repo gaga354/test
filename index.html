@@ -20,12 +20,72 @@
       </label>
     </div>
 
-    <div class="canvas-settings">
-      <h3>캔버스 설정</h3>
-      <div class="setting-row">
-        <label>너비: <input type="number" id="canvasWidth" value="1920" min="320" max="3840"> px</label>
-        <label>높이: <input type="number" id="canvasHeight" value="1080" min="240" max="2160"> px</label>
+    <div class="output-settings-section">
+      <h3>🎬 영상 출력 설정</h3>
+
+      <div class="resolution-settings">
+        <h4>해상도</h4>
+        <select id="resolutionPreset">
+          <optgroup label="일반">
+            <option value="mobile">모바일 (720×1280) 세로</option>
+            <option value="hd">HD (1280×720)</option>
+            <option value="fullhd" selected>Full HD (1920×1080) 권장</option>
+            <option value="4k">4K (3840×2160)</option>
+          </optgroup>
+          <optgroup label="SNS">
+            <option value="instagram-square">인스타그램 정사각형 (1080×1080)</option>
+            <option value="instagram-story">인스타그램 스토리 (1080×1920)</option>
+            <option value="youtube">YouTube (1920×1080)</option>
+            <option value="tiktok">TikTok (1080×1920)</option>
+          </optgroup>
+          <optgroup label="기타">
+            <option value="custom">사용자 정의</option>
+          </optgroup>
+        </select>
+
+        <div id="customResolutionInputs" class="custom-resolution" style="display: none;">
+          <label>너비: <input type="number" id="customWidth" value="1920" min="320" max="7680"> px</label>
+          <button id="swapDimensions" type="button" title="가로/세로 전환">🔄</button>
+          <label>높이: <input type="number" id="customHeight" value="1080" min="240" max="4320"> px</label>
+          <label class="lock-ratio">
+            <input type="checkbox" id="lockAspectRatio" checked> 비율 고정
+          </label>
+        </div>
+      </div>
+
+      <div class="quality-settings">
+        <h4>품질</h4>
+        <select id="qualityPreset">
+          <option value="low">저화질 (2 Mbps) - 빠른 업로드용</option>
+          <option value="medium" selected>중간 (5 Mbps) - 권장</option>
+          <option value="high">고화질 (10 Mbps)</option>
+          <option value="ultra">최고화질 (20 Mbps) - 대용량</option>
+        </select>
+      </div>
+
+      <div class="fps-settings">
+        <h4>프레임레이트</h4>
         <label>FPS: <input type="number" id="fps" value="30" min="24" max="60"></label>
+      </div>
+
+      <div class="output-info">
+        <div class="info-row">
+          <span>📐 출력 크기:</span>
+          <strong id="outputSizeDisplay">1920 × 1080 px</strong>
+        </div>
+        <div class="info-row">
+          <span>📊 종횡비:</span>
+          <strong id="aspectRatioDisplay">16:9</strong>
+        </div>
+        <div class="info-row">
+          <span>⏱️ 예상 길이:</span>
+          <strong id="totalDurationDisplay">0초</strong>
+        </div>
+        <div class="info-row">
+          <span>💾 예상 용량:</span>
+          <strong id="estimatedSizeDisplay">0 MB</strong>
+        </div>
+        <p class="info-note">※ 실제 용량은 내용에 따라 다를 수 있습니다</p>
       </div>
     </div>
 
@@ -89,13 +149,31 @@
     <div id="imageList" class="image-list"></div>
 
     <div class="preview-section">
-      <h3>미리보기</h3>
-      <canvas id="previewCanvas"></canvas>
+      <div class="preview-header">
+        <h3>미리보기</h3>
+        <div class="preview-controls">
+          <button id="zoomOutBtn" class="preview-btn" title="축소">🔍−</button>
+          <button id="zoomResetBtn" class="preview-btn" title="원본 크기">100%</button>
+          <button id="zoomInBtn" class="preview-btn" title="확대">🔍+</button>
+          <button id="fitScreenBtn" class="preview-btn" title="화면에 맞춤">⛶</button>
+          <label class="preview-checkbox">
+            <input type="checkbox" id="showGridBtn"> 그리드
+          </label>
+          <label class="preview-checkbox">
+            <input type="checkbox" id="showSafeAreaBtn"> 안전영역
+          </label>
+        </div>
+      </div>
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="previewCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
     </div>
 
     <div class="action-buttons">
-      <button id="generateBtn" class="generate-btn" disabled>영상 생성하기</button>
-      <button id="clearBtn" class="clear-btn">모두 지우기</button>
+      <button id="generateBtn" class="generate-btn" disabled>🎬 영상 생성하기</button>
+      <button id="cancelGenerationBtn" class="cancel-generation-btn" style="display: none;">⏹️ 취소</button>
+      <button id="clearBtn" class="clear-btn">🗑️ 모두 지우기</button>
     </div>
 
     <div id="progress" class="progress-section" style="display: none;">
