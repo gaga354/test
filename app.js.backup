@@ -102,15 +102,6 @@ let showSafeArea = false;
 // 애니메이션 미리보기 상태
 let isPreviewPlaying = false;
 let previewAnimationFrame = null;
-let previewCurrentImageIndex = 0;
-
-// 모달 상태
-let currentEditingImageId = null;
-const imageModal = document.getElementById('imageModal');
-const modalBody = document.getElementById('modalBody');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
-const modalCancelBtn = document.getElementById('modalCancelBtn');
-const modalSaveBtn = document.getElementById('modalSaveBtn');
 
 // Ken Burns 애니메이션 프리셋
 const kenBurnsPresets = {
@@ -743,33 +734,24 @@ function togglePreviewAnimation() {
 
 // 애니메이션 미리보기 시작
 function startPreviewAnimation() {
-  previewCurrentImageIndex = 0;
-  let imageStartTime = null;
+  let startTime = null;
+  const duration = 2000; // 2초 동안 애니메이션
 
   function animate(timestamp) {
     if (!isPreviewPlaying || images.length === 0) return;
 
-    const currentImage = images[previewCurrentImageIndex];
-    const imageDuration = currentImage.duration * 1000; // 초를 밀리초로
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const progress = (elapsed % duration) / duration; // 0~1 반복
 
-    if (!imageStartTime) imageStartTime = timestamp;
-    const elapsed = timestamp - imageStartTime;
-    const progress = Math.min(elapsed / imageDuration, 1.0); // 0~1
-
-    // 현재 이미지 그리기
+    // 첫 번째 이미지에 애니메이션 적용
     const ctx = previewCanvas.getContext('2d');
+    const firstImage = images[0];
+
     ctx.fillStyle = defaultBgColorInput.value;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    drawImage(ctx, currentImage, progress);
 
-    // 현재 이미지 완료 시 다음 이미지로
-    if (progress >= 1.0) {
-      previewCurrentImageIndex++;
-      if (previewCurrentImageIndex >= images.length) {
-        previewCurrentImageIndex = 0; // 처음부터 다시
-      }
-      imageStartTime = timestamp; // 새 이미지 시작 시간
-    }
+    drawImage(ctx, firstImage, progress);
 
     previewAnimationFrame = requestAnimationFrame(animate);
   }
@@ -935,7 +917,7 @@ function loadImage(file) {
 }
 
 // 이미지 리스트 렌더링
-function renderImageListOld() {
+function renderImageList() {
   imageList.innerHTML = '';
   images.forEach((imageData, index) => {
     const item = document.createElement('div');
