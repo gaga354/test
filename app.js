@@ -18,6 +18,7 @@ const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
 // 미리보기 컨트롤 요소
+const playPreviewBtn = document.getElementById('playPreviewBtn');
 const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const zoomResetBtn = document.getElementById('zoomResetBtn');
@@ -46,6 +47,13 @@ const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
 const applyToAllBtn = document.getElementById('applyToAllBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
 const randomAnimationsBtn = document.getElementById('randomAnimationsBtn');
+
+// 프리셋 DOM 요소
+const presetNameInput = document.getElementById('presetNameInput');
+const savePresetBtn = document.getElementById('savePresetBtn');
+const presetSelect = document.getElementById('presetSelect');
+const loadPresetBtn = document.getElementById('loadPresetBtn');
+const deletePresetBtn = document.getElementById('deletePresetBtn');
 
 // 출력 설정
 const resolutionPresets = {
@@ -90,6 +98,10 @@ let fps = outputConfig.fps;
 let previewZoom = 1.0;
 let showGrid = false;
 let showSafeArea = false;
+
+// 애니메이션 미리보기 상태
+let isPreviewPlaying = false;
+let previewAnimationFrame = null;
 
 // Ken Burns 애니메이션 프리셋
 const kenBurnsPresets = {
@@ -361,6 +373,111 @@ function assignRandomAnimations() {
   }
 }
 
+// 프리셋 저장
+function savePreset() {
+  const presetName = presetNameInput.value.trim();
+  if (!presetName) {
+    alert('프리셋 이름을 입력해주세요.');
+    return;
+  }
+
+  const preset = getDefaultSettings();
+
+  // 기존 프리셋 목록 가져오기
+  const presets = JSON.parse(localStorage.getItem('imagePresets') || '{}');
+
+  // 덮어쓰기 확인
+  if (presets[presetName]) {
+    if (!confirm(`"${presetName}" 프리셋이 이미 존재합니다. 덮어쓰시겠습니까?`)) {
+      return;
+    }
+  }
+
+  presets[presetName] = preset;
+  localStorage.setItem('imagePresets', JSON.stringify(presets));
+
+  presetNameInput.value = '';
+  loadPresetList();
+  alert(`프리셋 "${presetName}"이(가) 저장되었습니다!`);
+}
+
+// 프리셋 불러오기
+function loadPreset() {
+  const presetName = presetSelect.value;
+  if (!presetName) return;
+
+  const presets = JSON.parse(localStorage.getItem('imagePresets') || '{}');
+  const preset = presets[presetName];
+
+  if (!preset) {
+    alert('프리셋을 찾을 수 없습니다.');
+    return;
+  }
+
+  // 기본값 입력 필드에 적용
+  defaultDurationInput.value = preset.duration;
+  defaultWidthInput.value = preset.width;
+  defaultHeightInput.value = preset.height;
+  defaultXInput.value = preset.x;
+  defaultYInput.value = preset.y;
+  defaultFitInput.value = preset.fit;
+  defaultBgColorInput.value = preset.bgColor;
+  defaultBgEnabledInput.checked = preset.bgEnabled;
+  defaultBorderEnabledInput.checked = preset.borderEnabled;
+  defaultBorderColorInput.value = preset.borderColor;
+  defaultBorderWidthInput.value = preset.borderWidth;
+  defaultShadowEnabledInput.checked = preset.shadowEnabled;
+  defaultShadowColorInput.value = preset.shadowColor;
+  defaultShadowBlurInput.value = preset.shadowBlur;
+  defaultShadowXInput.value = preset.shadowX;
+  defaultShadowYInput.value = preset.shadowY;
+
+  alert(`프리셋 "${presetName}"이(가) 불러와졌습니다!`);
+}
+
+// 프리셋 삭제
+function deletePreset() {
+  const presetName = presetSelect.value;
+  if (!presetName) return;
+
+  if (!confirm(`프리셋 "${presetName}"을(를) 삭제하시겠습니까?`)) {
+    return;
+  }
+
+  const presets = JSON.parse(localStorage.getItem('imagePresets') || '{}');
+  delete presets[presetName];
+  localStorage.setItem('imagePresets', JSON.stringify(presets));
+
+  loadPresetList();
+  alert(`프리셋 "${presetName}"이(가) 삭제되었습니다.`);
+}
+
+// 프리셋 목록 불러오기
+function loadPresetList() {
+  const presets = JSON.parse(localStorage.getItem('imagePresets') || '{}');
+  const presetNames = Object.keys(presets);
+
+  // 드롭다운 초기화
+  presetSelect.innerHTML = '<option value="">프리셋 선택...</option>';
+
+  // 프리셋 목록 추가
+  presetNames.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    presetSelect.appendChild(option);
+  });
+
+  updatePresetButtons();
+}
+
+// 프리셋 버튼 상태 업데이트
+function updatePresetButtons() {
+  const hasSelection = presetSelect.value !== '';
+  loadPresetBtn.disabled = !hasSelection;
+  deletePresetBtn.disabled = !hasSelection;
+}
+
 // 캔버스 초기화
 function initCanvas() {
   previewCanvas.width = canvasWidth;
@@ -597,6 +714,7 @@ document.getElementById('fps').addEventListener('change', (e) => {
 });
 
 // 미리보기 컨트롤 이벤트 리스너
+playPreviewBtn.addEventListener('click', togglePreviewAnimation);
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
 zoomResetBtn.addEventListener('click', zoomReset);
@@ -612,8 +730,64 @@ showSafeAreaBtn.addEventListener('change', (e) => {
   updateOverlay();
 });
 
+// 애니메이션 재생/일시정지 토글
+function togglePreviewAnimation() {
+  if (images.length === 0) return;
+
+  isPreviewPlaying = !isPreviewPlaying;
+
+  if (isPreviewPlaying) {
+    playPreviewBtn.textContent = '⏸️';
+    playPreviewBtn.classList.add('playing');
+    playPreviewBtn.title = '일시정지';
+    startPreviewAnimation();
+  } else {
+    playPreviewBtn.textContent = '▶️';
+    playPreviewBtn.classList.remove('playing');
+    playPreviewBtn.title = '애니메이션 재생';
+    stopPreviewAnimation();
+  }
+}
+
+// 애니메이션 미리보기 시작
+function startPreviewAnimation() {
+  let startTime = null;
+  const duration = 2000; // 2초 동안 애니메이션
+
+  function animate(timestamp) {
+    if (!isPreviewPlaying || images.length === 0) return;
+
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const progress = (elapsed % duration) / duration; // 0~1 반복
+
+    // 첫 번째 이미지에 애니메이션 적용
+    const ctx = previewCanvas.getContext('2d');
+    const firstImage = images[0];
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    drawImage(ctx, firstImage, progress);
+
+    previewAnimationFrame = requestAnimationFrame(animate);
+  }
+
+  previewAnimationFrame = requestAnimationFrame(animate);
+}
+
+// 애니메이션 미리보기 중지
+function stopPreviewAnimation() {
+  if (previewAnimationFrame) {
+    cancelAnimationFrame(previewAnimationFrame);
+    previewAnimationFrame = null;
+  }
+  updatePreview(); // 정적 미리보기로 복원
+}
+
 // 초기화
 loadDefaultSettings();
+loadPresetList();
 initCanvas();
 updateOutputInfo();
 
@@ -625,6 +799,52 @@ imageInput.addEventListener('change', (e) => {
   }
   e.target.value = ''; // 같은 파일 재선택 가능하도록
 });
+
+// 드래그 앤 드롭
+const dropZone = document.getElementById('dropZone');
+
+// 기본 드래그 동작 방지
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, preventDefaults, false);
+  document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+// 드래그 오버 시각 효과
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.add('drag-over');
+  }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.remove('drag-over');
+  }, false);
+});
+
+// 드롭 처리
+dropZone.addEventListener('drop', (e) => {
+  const files = e.dataTransfer.files;
+  handleFiles(files);
+}, false);
+
+// 클릭으로도 파일 선택 가능
+dropZone.addEventListener('click', (e) => {
+  // label이 아닌 영역을 클릭한 경우에만 동작
+  if (e.target === dropZone || e.target.closest('.drop-zone-content')) {
+    imageInput.click();
+  }
+});
+
+// 파일 처리 함수
+function handleFiles(files) {
+  [...files].forEach(loadImage);
+}
 
 // 이미지 로드
 function loadImage(file) {
@@ -1524,6 +1744,83 @@ saveDefaultsBtn.addEventListener('click', saveDefaultSettings);
 applyToAllBtn.addEventListener('click', applyDefaultsToAll);
 resetDefaultsBtn.addEventListener('click', resetDefaultSettings);
 randomAnimationsBtn.addEventListener('click', assignRandomAnimations);
+
+// 프리셋 버튼 이벤트
+savePresetBtn.addEventListener('click', savePreset);
+loadPresetBtn.addEventListener('click', loadPreset);
+deletePresetBtn.addEventListener('click', deletePreset);
+presetSelect.addEventListener('change', updatePresetButtons);
+
+// 키보드 단축키
+document.addEventListener('keydown', (e) => {
+  // 입력 필드에서는 단축키 비활성화
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+    return;
+  }
+
+  // Ctrl/Cmd 키 확인
+  const ctrlOrCmd = e.ctrlKey || e.metaKey;
+
+  // Space: 미리보기 재생/일시정지
+  if (e.code === 'Space') {
+    e.preventDefault();
+    togglePreviewAnimation();
+  }
+  // +/=: 줌 인
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+    e.preventDefault();
+    zoomIn();
+  }
+  // -: 줌 아웃
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+    e.preventDefault();
+    zoomOut();
+  }
+  // 0: 줌 리셋
+  else if (e.code === 'Digit0' || e.code === 'Numpad0') {
+    e.preventDefault();
+    zoomReset();
+  }
+  // G: 그리드 토글
+  else if (e.code === 'KeyG') {
+    e.preventDefault();
+    showGridBtn.checked = !showGridBtn.checked;
+    showGrid = showGridBtn.checked;
+    updateOverlay();
+  }
+  // S: 안전 영역 토글
+  else if (e.code === 'KeyS' && !ctrlOrCmd) {
+    e.preventDefault();
+    showSafeAreaBtn.checked = !showSafeAreaBtn.checked;
+    showSafeArea = showSafeAreaBtn.checked;
+    updateOverlay();
+  }
+  // Ctrl/Cmd + S: 기본값 저장
+  else if (e.code === 'KeyS' && ctrlOrCmd) {
+    e.preventDefault();
+    saveDefaultSettings();
+  }
+  // Ctrl/Cmd + G: 영상 생성
+  else if (e.code === 'KeyG' && ctrlOrCmd) {
+    e.preventDefault();
+    if (!isGenerating && images.length > 0) {
+      generateBtn.click();
+    }
+  }
+  // Ctrl/Cmd + A: 모든 이미지에 기본값 적용
+  else if (e.code === 'KeyA' && ctrlOrCmd) {
+    e.preventDefault();
+    if (images.length > 0) {
+      applyDefaultsToAll();
+    }
+  }
+  // Escape: 미리보기 재생 중지
+  else if (e.code === 'Escape') {
+    if (isPreviewPlaying) {
+      togglePreviewAnimation();
+    }
+  }
+});
 
 // 영상 생성 관련 변수
 let isGenerating = false;
