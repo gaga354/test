@@ -45,6 +45,7 @@ const defaultShadowYInput = document.getElementById('defaultShadowY');
 const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
 const applyToAllBtn = document.getElementById('applyToAllBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+const randomAnimationsBtn = document.getElementById('randomAnimationsBtn');
 
 // 출력 설정
 const resolutionPresets = {
@@ -90,6 +91,54 @@ let previewZoom = 1.0;
 let showGrid = false;
 let showSafeArea = false;
 
+// Ken Burns 애니메이션 프리셋
+const kenBurnsPresets = {
+  'none': { name: '없음', startScale: 1.0, endScale: 1.0, startX: 0, startY: 0, endX: 0, endY: 0 },
+  'zoom-in': { name: '줌 인', startScale: 1.0, endScale: 1.3, startX: 0, startY: 0, endX: 0, endY: 0 },
+  'zoom-out': { name: '줌 아웃', startScale: 1.3, endScale: 1.0, startX: 0, startY: 0, endX: 0, endY: 0 },
+  'pan-right': { name: '좌→우', startScale: 1.2, endScale: 1.2, startX: -10, startY: 0, endX: 10, endY: 0 },
+  'pan-left': { name: '우→좌', startScale: 1.2, endScale: 1.2, startX: 10, startY: 0, endX: -10, endY: 0 },
+  'pan-up': { name: '하→상', startScale: 1.2, endScale: 1.2, startX: 0, startY: 10, endX: 0, endY: -10 },
+  'pan-down': { name: '상→하', startScale: 1.2, endScale: 1.2, startX: 0, startY: -10, endX: 0, endY: 10 },
+  'zoom-pan-right': { name: '줌인+우측', startScale: 1.0, endScale: 1.3, startX: -5, startY: 0, endX: 5, endY: 0 },
+  'zoom-pan-left': { name: '줌인+좌측', startScale: 1.0, endScale: 1.3, startX: 5, startY: 0, endX: -5, endY: 0 }
+};
+
+// 전환 효과 프리셋
+const transitionPresets = {
+  'none': { name: '없음', duration: 0 },
+  'fade': { name: '페이드', duration: 0.5 },
+  'slide-left': { name: '좌측 슬라이드', duration: 0.7 },
+  'slide-right': { name: '우측 슬라이드', duration: 0.7 },
+  'slide-up': { name: '위로 슬라이드', duration: 0.7 },
+  'slide-down': { name: '아래로 슬라이드', duration: 0.7 }
+};
+
+// 한글 폰트 목록 (구글 폰트)
+const koreanFonts = [
+  { id: 'system', name: '시스템 기본', family: 'sans-serif' },
+  { id: 'noto-sans-kr', name: 'Noto Sans KR', family: 'Noto Sans KR' },
+  { id: 'nanum-gothic', name: '나눔고딕', family: 'Nanum Gothic' },
+  { id: 'nanum-myeongjo', name: '나눔명조', family: 'Nanum Myeongjo' },
+  { id: 'black-han-sans', name: '검은고딕', family: 'Black Han Sans' },
+  { id: 'jua', name: '주아', family: 'Jua' },
+  { id: 'do-hyeon', name: '도현', family: 'Do Hyeon' },
+  { id: 'cute-font', name: '귀여운폰트', family: 'Cute Font' },
+  { id: 'stylish', name: '스타일리시', family: 'Stylish' },
+  { id: 'sunflower', name: '해바라기', family: 'Sunflower' }
+];
+
+// 구글 폰트 로드
+function loadGoogleFonts() {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Black+Han+Sans&family=Jua&family=Do+Hyeon&family=Cute+Font&family=Stylish&family=Sunflower:wght@300;500;700&display=swap';
+  document.head.appendChild(link);
+}
+
+// 페이지 로드 시 폰트 로드
+loadGoogleFonts();
+
 // 기본 이미지 설정 (초기값)
 const INITIAL_DEFAULTS = {
   duration: 3,
@@ -119,6 +168,42 @@ const INITIAL_DEFAULTS = {
     hue: 0,
     invert: 0,
     opacity: 100
+  },
+  animation: {
+    type: 'none',
+    startScale: 1.0,
+    endScale: 1.0,
+    startX: 0,
+    startY: 0,
+    endX: 0,
+    endY: 0
+  },
+  transition: {
+    type: 'none',
+    duration: 0
+  },
+  text: {
+    enabled: false,
+    content: '',
+    fontFamily: 'Noto Sans KR',
+    fontSize: 48,
+    color: '#ffffff',
+    bold: false,
+    italic: false,
+    align: 'center',
+    x: 50,
+    y: 50,
+    bgEnabled: false,
+    bgColor: '#000000',
+    bgOpacity: 0.7,
+    strokeEnabled: false,
+    strokeColor: '#000000',
+    strokeWidth: 2,
+    shadowEnabled: false,
+    shadowColor: '#000000',
+    shadowBlur: 4,
+    shadowX: 2,
+    shadowY: 2
   }
 };
 
@@ -246,6 +331,33 @@ function applyDefaultsToAll() {
     renderImageList();
     updatePreview();
     alert('모든 이미지에 기본값이 적용되었습니다!');
+  }
+}
+
+// 랜덤 애니메이션 배정
+function assignRandomAnimations() {
+  if (images.length === 0) return;
+  if (confirm(`모든 이미지(${images.length}개)에 랜덤 애니메이션을 배정하시겠습니까?`)) {
+    const animTypes = Object.keys(kenBurnsPresets).filter(type => type !== 'none');
+
+    images.forEach(img => {
+      // 랜덤 애니메이션 선택
+      const randomType = animTypes[Math.floor(Math.random() * animTypes.length)];
+      const preset = kenBurnsPresets[randomType];
+
+      if (!img.animation) img.animation = {};
+      img.animation.type = randomType;
+      img.animation.startScale = preset.startScale;
+      img.animation.endScale = preset.endScale;
+      img.animation.startX = preset.startX;
+      img.animation.startY = preset.startY;
+      img.animation.endX = preset.endX;
+      img.animation.endY = preset.endY;
+    });
+
+    renderImageList();
+    updatePreview();
+    alert(`모든 이미지에 랜덤 애니메이션이 배정되었습니다!`);
   }
 }
 
@@ -385,7 +497,11 @@ function updateOutputConfig() {
 
 function updateOutputInfo() {
   const { width, height } = outputConfig.resolution;
-  const totalDuration = images.reduce((sum, img) => sum + img.duration, 0);
+  // 전환 효과 시간을 포함한 총 길이 계산
+  const totalDuration = images.reduce((sum, img, idx) => {
+    const transDuration = idx < images.length - 1 ? (img.transition?.duration || 0) : 0;
+    return sum + img.duration + transDuration;
+  }, 0);
   const bitrate = outputConfig.quality.bitrate;
   const estimatedSize = (bitrate * totalDuration / 8 / 1024 / 1024).toFixed(2);
 
@@ -512,9 +628,34 @@ imageInput.addEventListener('change', (e) => {
 
 // 이미지 로드
 function loadImage(file) {
+  // 파일 타입 체크
+  if (!file.type.startsWith('image/')) {
+    alert(`"${file.name}"은(는) 이미지 파일이 아닙니다.`);
+    return;
+  }
+
+  // 파일 크기 체크 (10MB 초과 시 경고)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+    if (!confirm(`"${file.name}"의 크기가 ${sizeMB}MB입니다.\n큰 파일은 처리 속도가 느릴 수 있습니다.\n계속하시겠습니까?`)) {
+      return;
+    }
+  }
+
   const reader = new FileReader();
+
+  reader.onerror = () => {
+    alert(`파일 읽기 실패: ${file.name}`);
+  };
+
   reader.onload = (e) => {
     const img = new Image();
+
+    img.onerror = () => {
+      alert(`이미지 로드 실패: ${file.name}`);
+    };
+
     img.onload = () => {
       const defaults = getDefaultSettings();
       const imageData = {
@@ -538,7 +679,10 @@ function loadImage(file) {
         shadowBlur: defaults.shadowBlur,
         shadowX: defaults.shadowX,
         shadowY: defaults.shadowY,
-        filters: defaults.filters ? { ...defaults.filters } : { ...INITIAL_DEFAULTS.filters }
+        filters: defaults.filters ? { ...defaults.filters } : { ...INITIAL_DEFAULTS.filters },
+        animation: defaults.animation ? { ...defaults.animation } : { ...INITIAL_DEFAULTS.animation },
+        transition: defaults.transition ? { ...defaults.transition } : { ...INITIAL_DEFAULTS.transition },
+        text: defaults.text ? { ...defaults.text } : { ...INITIAL_DEFAULTS.text }
       };
       images.push(imageData);
       renderImageList();
@@ -599,6 +743,31 @@ function renderImageList() {
           </div>
         </div>
         <div class="control-group">
+          <label>애니메이션</label>
+          <select class="animation-input" data-id="${imageData.id}">
+            <option value="none" ${(imageData.animation?.type || 'none') === 'none' ? 'selected' : ''}>없음</option>
+            <option value="zoom-in" ${imageData.animation?.type === 'zoom-in' ? 'selected' : ''}>줌 인</option>
+            <option value="zoom-out" ${imageData.animation?.type === 'zoom-out' ? 'selected' : ''}>줌 아웃</option>
+            <option value="pan-right" ${imageData.animation?.type === 'pan-right' ? 'selected' : ''}>좌→우</option>
+            <option value="pan-left" ${imageData.animation?.type === 'pan-left' ? 'selected' : ''}>우→좌</option>
+            <option value="pan-up" ${imageData.animation?.type === 'pan-up' ? 'selected' : ''}>하→상</option>
+            <option value="pan-down" ${imageData.animation?.type === 'pan-down' ? 'selected' : ''}>상→하</option>
+            <option value="zoom-pan-right" ${imageData.animation?.type === 'zoom-pan-right' ? 'selected' : ''}>줌인+우측</option>
+            <option value="zoom-pan-left" ${imageData.animation?.type === 'zoom-pan-left' ? 'selected' : ''}>줌인+좌측</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>다음 이미지로 전환</label>
+          <select class="transition-input" data-id="${imageData.id}">
+            <option value="none" ${(imageData.transition?.type || 'none') === 'none' ? 'selected' : ''}>없음 (즉시)</option>
+            <option value="fade" ${imageData.transition?.type === 'fade' ? 'selected' : ''}>페이드</option>
+            <option value="slide-left" ${imageData.transition?.type === 'slide-left' ? 'selected' : ''}>좌측 슬라이드</option>
+            <option value="slide-right" ${imageData.transition?.type === 'slide-right' ? 'selected' : ''}>우측 슬라이드</option>
+            <option value="slide-up" ${imageData.transition?.type === 'slide-up' ? 'selected' : ''}>위로 슬라이드</option>
+            <option value="slide-down" ${imageData.transition?.type === 'slide-down' ? 'selected' : ''}>아래로 슬라이드</option>
+          </select>
+        </div>
+        <div class="control-group">
           <label>배경색</label>
           <input type="color" class="bg-color-input" value="${imageData.bgColor}" data-id="${imageData.id}">
           <label class="inline-checkbox"><input type="checkbox" class="bg-enabled-input" ${imageData.bgEnabled ? 'checked' : ''} data-id="${imageData.id}"> 사용</label>
@@ -655,6 +824,33 @@ function renderImageList() {
           </div>
         </div>
         <button class="reset-filters-btn" data-id="${imageData.id}" type="button">🔄 필터 초기화</button>
+      </div>
+      <div class="text-controls">
+        <h4 class="text-title">
+          <label class="inline-checkbox">
+            <input type="checkbox" class="text-enabled-input" ${imageData.text?.enabled ? 'checked' : ''} data-id="${imageData.id}"> 📝 텍스트 오버레이
+          </label>
+        </h4>
+        <div class="text-settings" style="display: ${imageData.text?.enabled ? 'grid' : 'none'};">
+          <div class="text-setting-item">
+            <label>텍스트:</label>
+            <textarea class="text-content-input" data-id="${imageData.id}" rows="2" placeholder="텍스트 입력...">${imageData.text?.content || ''}</textarea>
+          </div>
+          <div class="text-setting-item">
+            <label>폰트:</label>
+            <select class="text-font-input" data-id="${imageData.id}">
+              ${koreanFonts.map(font => `<option value="${font.family}" ${imageData.text?.fontFamily === font.family ? 'selected' : ''}>${font.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="text-setting-row">
+            <label>크기: <input type="number" class="text-size-input" value="${imageData.text?.fontSize || 48}" min="12" max="200" data-id="${imageData.id}">px</label>
+            <label>색상: <input type="color" class="text-color-input" value="${imageData.text?.color || '#ffffff'}" data-id="${imageData.id}"></label>
+          </div>
+          <div class="text-setting-row">
+            <label>X 위치: <input type="number" class="text-x-input" value="${imageData.text?.x || 50}" min="0" max="100" data-id="${imageData.id}">%</label>
+            <label>Y 위치: <input type="number" class="text-y-input" value="${imageData.text?.y || 50}" min="0" max="100" data-id="${imageData.id}">%</label>
+          </div>
+        </div>
       </div>
       <div class="image-actions">
         <button class="move-up-btn" data-id="${imageData.id}" type="button" ${index === 0 ? 'disabled' : ''}>⬆️ 위로</button>
@@ -726,6 +922,43 @@ function renderImageList() {
       if (img) {
         img.fit = e.target.value;
         updatePreview();
+      }
+    });
+  });
+
+  // 애니메이션 이벤트 리스너
+  document.querySelectorAll('.animation-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const img = images.find(i => i.id === id);
+      if (img) {
+        const animType = e.target.value;
+        const preset = kenBurnsPresets[animType];
+        if (!img.animation) img.animation = {};
+        img.animation.type = animType;
+        img.animation.startScale = preset.startScale;
+        img.animation.endScale = preset.endScale;
+        img.animation.startX = preset.startX;
+        img.animation.startY = preset.startY;
+        img.animation.endX = preset.endX;
+        img.animation.endY = preset.endY;
+        updatePreview();
+      }
+    });
+  });
+
+  // 전환 효과 이벤트 리스너
+  document.querySelectorAll('.transition-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const img = images.find(i => i.id === id);
+      if (img) {
+        const transType = e.target.value;
+        const preset = transitionPresets[transType];
+        if (!img.transition) img.transition = {};
+        img.transition.type = transType;
+        img.transition.duration = preset.duration;
+        updateOutputInfo(); // 전환 효과 시간이 전체 길이에 영향
       }
     });
   });
@@ -866,6 +1099,47 @@ function renderImageList() {
     });
   });
 
+  // 텍스트 오버레이 이벤트 리스너
+  document.querySelectorAll('.text-enabled-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const img = images.find(i => i.id === id);
+      if (img) {
+        if (!img.text) img.text = { ...INITIAL_DEFAULTS.text };
+        img.text.enabled = e.target.checked;
+        renderImageList();
+        updatePreview();
+      }
+    });
+  });
+
+  document.querySelectorAll('.text-content-input, .text-font-input, .text-size-input, .text-color-input, .text-x-input, .text-y-input').forEach(input => {
+    const eventType = input.classList.contains('text-font-input') ? 'change' : 'input';
+    input.addEventListener(eventType, (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const img = images.find(i => i.id === id);
+      if (img) {
+        if (!img.text) img.text = { ...INITIAL_DEFAULTS.text };
+
+        if (e.target.classList.contains('text-content-input')) {
+          img.text.content = e.target.value;
+        } else if (e.target.classList.contains('text-font-input')) {
+          img.text.fontFamily = e.target.value;
+        } else if (e.target.classList.contains('text-size-input')) {
+          img.text.fontSize = parseInt(e.target.value);
+        } else if (e.target.classList.contains('text-color-input')) {
+          img.text.color = e.target.value;
+        } else if (e.target.classList.contains('text-x-input')) {
+          img.text.x = parseFloat(e.target.value);
+        } else if (e.target.classList.contains('text-y-input')) {
+          img.text.y = parseFloat(e.target.value);
+        }
+
+        updatePreview();
+      }
+    });
+  });
+
   // 회전 버튼
   document.querySelectorAll('.rotate-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -930,19 +1204,94 @@ function updatePreview() {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // 첫 번째 이미지 그리기
-  drawImage(ctx, firstImage);
+  // 첫 번째 이미지 그리기 (애니메이션 중간 지점으로 미리보기)
+  const previewProgress = firstImage.animation?.type !== 'none' ? 0.5 : 0;
+  drawImage(ctx, firstImage, previewProgress);
 }
 
-// 이미지 그리기 함수
-function drawImage(ctx, imageData) {
-  const { img, width, height, x, y, fit, rotation, bgColor, bgEnabled, borderEnabled, borderColor, borderWidth, shadowEnabled, shadowColor, shadowBlur, shadowX, shadowY, filters } = imageData;
+// 전환 효과 렌더링 함수
+function renderTransition(ctx, fromImage, toImage, progress) {
+  const transType = fromImage.transition?.type || 'none';
 
-  // 캔버스 크기에 대한 퍼센트 계산
-  const targetWidth = (canvasWidth * width) / 100;
-  const targetHeight = (canvasHeight * height) / 100;
-  const offsetX = (canvasWidth * x) / 100;
-  const offsetY = (canvasHeight * y) / 100;
+  if (transType === 'fade') {
+    // 페이드 효과: 현재 이미지는 페이드 아웃, 다음 이미지는 페이드 인
+    ctx.save();
+    ctx.globalAlpha = 1.0 - progress;
+    drawImage(ctx, fromImage, 1.0); // 현재 이미지 마지막 프레임
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = progress;
+    drawImage(ctx, toImage, 0); // 다음 이미지 첫 프레임
+    ctx.restore();
+  } else if (transType === 'slide-left') {
+    // 좌측 슬라이드: 다음 이미지가 오른쪽에서 왼쪽으로
+    ctx.save();
+    ctx.translate(-canvasWidth * progress, 0);
+    drawImage(ctx, fromImage, 1.0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(canvasWidth * (1 - progress), 0);
+    drawImage(ctx, toImage, 0);
+    ctx.restore();
+  } else if (transType === 'slide-right') {
+    // 우측 슬라이드: 다음 이미지가 왼쪽에서 오른쪽으로
+    ctx.save();
+    ctx.translate(canvasWidth * progress, 0);
+    drawImage(ctx, fromImage, 1.0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(-canvasWidth * (1 - progress), 0);
+    drawImage(ctx, toImage, 0);
+    ctx.restore();
+  } else if (transType === 'slide-up') {
+    // 위로 슬라이드: 다음 이미지가 아래에서 위로
+    ctx.save();
+    ctx.translate(0, -canvasHeight * progress);
+    drawImage(ctx, fromImage, 1.0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(0, canvasHeight * (1 - progress));
+    drawImage(ctx, toImage, 0);
+    ctx.restore();
+  } else if (transType === 'slide-down') {
+    // 아래로 슬라이드: 다음 이미지가 위에서 아래로
+    ctx.save();
+    ctx.translate(0, canvasHeight * progress);
+    drawImage(ctx, fromImage, 1.0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(0, -canvasHeight * (1 - progress));
+    drawImage(ctx, toImage, 0);
+    ctx.restore();
+  }
+}
+
+// 이미지 그리기 함수 (progress는 0.0~1.0, 애니메이션 진행도)
+function drawImage(ctx, imageData, progress = 0) {
+  const { img, width, height, x, y, fit, rotation, bgColor, bgEnabled, borderEnabled, borderColor, borderWidth, shadowEnabled, shadowColor, shadowBlur, shadowX, shadowY, filters, animation } = imageData;
+
+  // Ken Burns 애니메이션 계산
+  let animScale = 1.0;
+  let animOffsetX = 0;
+  let animOffsetY = 0;
+
+  if (animation && animation.type !== 'none') {
+    // 선형 보간
+    animScale = animation.startScale + (animation.endScale - animation.startScale) * progress;
+    animOffsetX = animation.startX + (animation.endX - animation.startX) * progress;
+    animOffsetY = animation.startY + (animation.endY - animation.startY) * progress;
+  }
+
+  // 캔버스 크기에 대한 퍼센트 계산 (애니메이션 적용)
+  const targetWidth = (canvasWidth * width * animScale) / 100;
+  const targetHeight = (canvasHeight * height * animScale) / 100;
+  const offsetX = (canvasWidth * (x + animOffsetX)) / 100;
+  const offsetY = (canvasHeight * (y + animOffsetY)) / 100;
 
   let drawWidth, drawHeight, drawX, drawY;
 
@@ -1048,6 +1397,50 @@ function drawImage(ctx, imageData) {
   }
 
   ctx.restore();
+
+  // 텍스트 오버레이 렌더링
+  const text = imageData.text;
+  if (text && text.enabled && text.content) {
+    ctx.save();
+
+    // 폰트 설정
+    const fontSize = text.fontSize || 48;
+    const fontFamily = text.fontFamily || 'Noto Sans KR';
+    const fontWeight = text.bold ? 'bold' : 'normal';
+    const fontStyle = text.italic ? 'italic' : 'normal';
+    ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`;
+
+    // 텍스트 정렬
+    ctx.textAlign = text.align || 'center';
+    ctx.textBaseline = 'middle';
+
+    // 텍스트 위치 계산
+    const textX = (canvasWidth * (text.x || 50)) / 100;
+    const textY = (canvasHeight * (text.y || 50)) / 100;
+
+    // 텍스트 색상
+    ctx.fillStyle = text.color || '#ffffff';
+
+    // 텍스트 그림자 (선택적)
+    if (text.shadowEnabled) {
+      ctx.shadowColor = text.shadowColor || '#000000';
+      ctx.shadowBlur = text.shadowBlur || 4;
+      ctx.shadowOffsetX = text.shadowX || 2;
+      ctx.shadowOffsetY = text.shadowY || 2;
+    }
+
+    // 텍스트 테두리 (선택적)
+    if (text.strokeEnabled) {
+      ctx.strokeStyle = text.strokeColor || '#000000';
+      ctx.lineWidth = text.strokeWidth || 2;
+      ctx.strokeText(text.content, textX, textY);
+    }
+
+    // 텍스트 그리기
+    ctx.fillText(text.content, textX, textY);
+
+    ctx.restore();
+  }
 }
 
 // 이미지 위로 이동
@@ -1110,6 +1503,7 @@ function updateGenerateButton() {
 // "모든 이미지에 적용" 버튼 상태 업데이트
 function updateApplyToAllButton() {
   applyToAllBtn.disabled = images.length === 0;
+  randomAnimationsBtn.disabled = images.length === 0;
 }
 
 // 모두 지우기
@@ -1129,6 +1523,7 @@ clearBtn.addEventListener('click', () => {
 saveDefaultsBtn.addEventListener('click', saveDefaultSettings);
 applyToAllBtn.addEventListener('click', applyDefaultsToAll);
 resetDefaultsBtn.addEventListener('click', resetDefaultSettings);
+randomAnimationsBtn.addEventListener('click', assignRandomAnimations);
 
 // 영상 생성 관련 변수
 let isGenerating = false;
@@ -1221,7 +1616,11 @@ async function generateVideo() {
   // 각 이미지를 순차적으로 렌더링
   const frameDelay = 1000 / outputConfig.fps;
   let currentTime = 0;
-  let totalDuration = images.reduce((sum, img) => sum + img.duration, 0);
+  // 전환 효과 시간을 포함한 총 길이 계산
+  let totalDuration = images.reduce((sum, img, idx) => {
+    const transDuration = idx < images.length - 1 ? (img.transition?.duration || 0) : 0;
+    return sum + img.duration + transDuration;
+  }, 0);
 
   for (let i = 0; i < images.length && !generationCancelled; i++) {
     const imageData = images[i];
@@ -1229,21 +1628,55 @@ async function generateVideo() {
 
     progressText.textContent = `이미지 ${i + 1}/${images.length} 처리 중...`;
 
+    // 이미지 프레임 렌더링
     for (let frame = 0; frame < frames && !generationCancelled; frame++) {
+      // 애니메이션 진행도 계산 (0.0 ~ 1.0)
+      const animProgress = frames > 1 ? frame / (frames - 1) : 0;
+
       // 배경 그리기
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-      // 이미지 그리기
-      drawImage(ctx, imageData);
+      // 이미지 그리기 (애니메이션 포함)
+      drawImage(ctx, imageData, animProgress);
 
       // 프레임 대기
       await new Promise(resolve => setTimeout(resolve, frameDelay));
 
       // 진행률 업데이트
       currentTime += 1 / fps;
-      const progress = (currentTime / totalDuration) * 100;
-      progressBar.style.width = progress + '%';
+      const overallProgress = (currentTime / totalDuration) * 100;
+      progressBar.style.width = overallProgress + '%';
+    }
+
+    // 전환 효과 렌더링 (마지막 이미지가 아닐 경우)
+    if (i < images.length - 1 && !generationCancelled) {
+      const transDuration = imageData.transition?.duration || 0;
+      if (transDuration > 0) {
+        const transFrames = Math.floor(transDuration * outputConfig.fps);
+        const nextImage = images[i + 1];
+
+        progressText.textContent = `전환 효과 처리 중... (${i + 1}→${i + 2})`;
+
+        for (let frame = 0; frame < transFrames && !generationCancelled; frame++) {
+          const transProgress = transFrames > 1 ? frame / (transFrames - 1) : 0;
+
+          // 배경 그리기
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+          // 전환 효과 렌더링
+          renderTransition(ctx, imageData, nextImage, transProgress);
+
+          // 프레임 대기
+          await new Promise(resolve => setTimeout(resolve, frameDelay));
+
+          // 진행률 업데이트
+          currentTime += 1 / fps;
+          const overallProgress = (currentTime / totalDuration) * 100;
+          progressBar.style.width = overallProgress + '%';
+        }
+      }
     }
   }
 
