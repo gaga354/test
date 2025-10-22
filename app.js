@@ -628,9 +628,34 @@ imageInput.addEventListener('change', (e) => {
 
 // 이미지 로드
 function loadImage(file) {
+  // 파일 타입 체크
+  if (!file.type.startsWith('image/')) {
+    alert(`"${file.name}"은(는) 이미지 파일이 아닙니다.`);
+    return;
+  }
+
+  // 파일 크기 체크 (10MB 초과 시 경고)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+    if (!confirm(`"${file.name}"의 크기가 ${sizeMB}MB입니다.\n큰 파일은 처리 속도가 느릴 수 있습니다.\n계속하시겠습니까?`)) {
+      return;
+    }
+  }
+
   const reader = new FileReader();
+
+  reader.onerror = () => {
+    alert(`파일 읽기 실패: ${file.name}`);
+  };
+
   reader.onload = (e) => {
     const img = new Image();
+
+    img.onerror = () => {
+      alert(`이미지 로드 실패: ${file.name}`);
+    };
+
     img.onload = () => {
       const defaults = getDefaultSettings();
       const imageData = {
@@ -1179,8 +1204,9 @@ function updatePreview() {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // 첫 번째 이미지 그리기
-  drawImage(ctx, firstImage);
+  // 첫 번째 이미지 그리기 (애니메이션 중간 지점으로 미리보기)
+  const previewProgress = firstImage.animation?.type !== 'none' ? 0.5 : 0;
+  drawImage(ctx, firstImage, previewProgress);
 }
 
 // 전환 효과 렌더링 함수
