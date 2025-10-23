@@ -13,9 +13,14 @@ const canvasContainer = document.getElementById('canvasContainer');
 const canvasWidthInput = document.getElementById('canvasWidth');
 const canvasHeightInput = document.getElementById('canvasHeight');
 const fpsInput = document.getElementById('fps');
+const outputFormatSelect = document.getElementById('outputFormat');
 const progressSection = document.getElementById('progress');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
+
+// FFmpeg.wasm 관련
+let ffmpeg = null;
+let ffmpegLoaded = false;
 
 // 미리보기 컨트롤 요소
 const playPreviewBtn = document.getElementById('playPreviewBtn');
@@ -1904,7 +1909,7 @@ async function generateVideo() {
     }
   };
 
-  mediaRecorder.onstop = () => {
+  mediaRecorder.onstop = async () => {
     if (generationCancelled) {
       progressText.textContent = '영상 생성이 취소되었습니다.';
       setTimeout(() => {
@@ -1913,17 +1918,35 @@ async function generateVideo() {
       return;
     }
 
-    const blob = new Blob(chunks, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
+    const webmBlob = new Blob(chunks, { type: 'video/webm' });
+    const timestamp = Date.now();
+    const outputFormat = outputFormatSelect.value;
 
-    // 다운로드 링크 생성
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `video_${Date.now()}.webm`;
-    a.click();
+    try {
+      if (outputFormat === 'webm') {
+        // WebM만 다운로드
+        downloadBlob(webmBlob, `video_${timestamp}.webm`);
+        progressText.textContent = '영상 생성 완료!';
+      } else if (outputFormat === 'mp4') {
+        // MP4로 변환하여 다운로드
+        const mp4Blob = await convertToMP4(webmBlob);
+        downloadBlob(mp4Blob, `video_${timestamp}.mp4`);
+        progressText.textContent = 'MP4 변환 완료!';
+      } else if (outputFormat === 'both') {
+        // WebM 먼저 다운로드
+        downloadBlob(webmBlob, `video_${timestamp}.webm`);
+        progressText.textContent = 'WebM 다운로드 완료, MP4 변환 중...';
 
-    URL.revokeObjectURL(url);
-    progressText.textContent = '영상 생성 완료!';
+        // MP4로 변환하여 다운로드
+        const mp4Blob = await convertToMP4(webmBlob);
+        downloadBlob(mp4Blob, `video_${timestamp}.mp4`);
+        progressText.textContent = '모든 포맷 생성 완료!';
+      }
+    } catch (error) {
+      console.error('영상 처리 오류:', error);
+      progressText.textContent = '오류: ' + error.message;
+      alert('영상 처리 중 오류가 발생했습니다: ' + error.message);
+    }
   };
 
   mediaRecorder.start();
@@ -1997,3 +2020,93 @@ async function generateVideo() {
 
   mediaRecorder.stop();
 }
+
+// FFmpeg.wasm 초기화
+async function loadFFmpeg() {
+  if (ffmpegLoaded) return;
+
+  try {
+    progressText.textContent = 'FFmpeg 로딩 중... (최초 1회만)';
+    const { FFmpeg } = FFmpegWASM;
+    const { fetchFile, toBlobURL } = FFmpegUtil;
+
+    ffmpeg = new FFmpeg();
+
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+
+    ffmpegLoaded = true;
+    console.log('FFmpeg loaded successfully');
+  } catch (error) {
+    console.error('FFmpeg 로딩 실패:', error);
+    throw new Error('FFmpeg 로딩 실패. MP4 변환을 사용할 수 없습니다.');
+  }
+}
+
+// WebM을 MP4로 변환
+async function convertToMP4(webmBlob, filename) {
+  try {
+    if (!ffmpegLoaded) {
+      await loadFFmpeg();
+    }
+
+    progressText.textContent = 'MP4로 변환 중...';
+    const { fetchFile } = FFmpegUtil;
+
+    // WebM 파일을 FFmpeg에 쓰기
+    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+
+    // FFmpeg 진행률 로깅
+    ffmpeg.on('log', ({ message }) => {
+      console.log(message);
+    });
+
+    ffmpeg.on('progress', ({ progress }) => {
+      const percent = Math.round(progress * 100);
+      progressText.textContent = `MP4 변환 중... ${percent}%`;
+    });
+
+    // 빠른 변환: 컨테이너만 변경 (-c copy)
+    await ffmpeg.exec(['-i', 'input.webm', '-c', 'copy', 'output.mp4']);
+
+    // 변환된 MP4 파일 읽기
+    const data = await ffmpeg.readFile('output.mp4');
+    const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+
+    // 임시 파일 삭제
+    await ffmpeg.deleteFile('input.webm');
+    await ffmpeg.deleteFile('output.mp4');
+
+    return mp4Blob;
+  } catch (error) {
+    console.error('MP4 변환 실패:', error);
+    throw new Error('MP4 변환 실패: ' + error.message);
+  }
+}
+
+// Blob 다운로드 헬퍼 함수
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 출력 포맷 선택에 따른 안내 메시지 업데이트
+outputFormatSelect.addEventListener('change', () => {
+  const formatNote = document.getElementById('formatNote');
+  const selectedFormat = outputFormatSelect.value;
+
+  if (selectedFormat === 'webm') {
+    formatNote.textContent = '※ WebM은 모든 브라우저에서 지원되며 빠르게 생성됩니다.';
+  } else if (selectedFormat === 'mp4') {
+    formatNote.textContent = '※ MP4는 WebM 생성 후 변환됩니다 (+10-20초). 최고의 호환성을 제공합니다.';
+  } else if (selectedFormat === 'both') {
+    formatNote.textContent = '※ WebM과 MP4 두 파일이 모두 다운로드됩니다 (+10-20초).';
+  }
+});

@@ -75,6 +75,16 @@
         <label>FPS: <input type="number" id="fps" value="30" min="24" max="60"></label>
       </div>
 
+      <div class="format-settings">
+        <h4>출력 포맷</h4>
+        <select id="outputFormat">
+          <option value="webm">WebM (빠름, 모든 브라우저 지원)</option>
+          <option value="mp4">MP4 (호환성 최고, 변환 시간 추가)</option>
+          <option value="both">WebM + MP4(둘 다 생성)</option>
+        </select>
+        <p class="format-note" id="formatNote">※ MP4는 WebM 생성 후 변환됩니다 (+10-20초)</p>
+      </div>
+
       <div class="output-info">
         <div class="info-row">
           <span>📐 출력 크기:</span>
@@ -226,6 +236,10 @@
       <p id="progressText">처리 중...</p>
     </div>
   </div>
+
+  <!-- FFmpeg.wasm for MP4 conversion -->
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.min.js"></script>
 
   <script src="app.js"></script>
   <script src="storyboard-functions.js"></script>

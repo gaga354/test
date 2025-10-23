@@ -143,18 +143,27 @@ header p {
 
 .resolution-settings,
 .quality-settings,
-.fps-settings {
+.fps-settings,
+.format-settings {
   margin-bottom: 20px;
 }
 
 .resolution-settings select,
-.quality-settings select {
+.quality-settings select,
+.format-settings select {
   width: 100%;
   padding: 10px;
   border: 2px solid #ddd;
   border-radius: 5px;
   font-size: 1rem;
   margin-top: 5px;
+}
+
+.format-note {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 8px;
+  font-style: italic;
 }
 
 .custom-resolution {
