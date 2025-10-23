@@ -143,18 +143,27 @@ header p {
 
 .resolution-settings,
 .quality-settings,
-.fps-settings {
+.fps-settings,
+.format-settings {
   margin-bottom: 20px;
 }
 
 .resolution-settings select,
-.quality-settings select {
+.quality-settings select,
+.format-settings select {
   width: 100%;
   padding: 10px;
   border: 2px solid #ddd;
   border-radius: 5px;
   font-size: 1rem;
   margin-top: 5px;
+}
+
+.format-note {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 8px;
+  font-style: italic;
 }
 
 .custom-resolution {
@@ -295,7 +304,10 @@ header p {
 .save-defaults-btn,
 .apply-to-all-btn,
 .reset-defaults-btn,
-.random-animations-btn {
+.random-animations-btn,
+.remove-animations-btn,
+.apply-transitions-btn,
+.remove-transitions-btn {
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
@@ -354,6 +366,84 @@ header p {
   background: #ccc;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.remove-animations-btn,
+.remove-transitions-btn {
+  background: #f44336;
+  color: white;
+}
+
+.remove-animations-btn:hover:not(:disabled),
+.remove-transitions-btn:hover:not(:disabled) {
+  background: #d32f2f;
+  transform: translateY(-1px);
+}
+
+.remove-animations-btn:disabled,
+.remove-transitions-btn:disabled,
+.apply-transitions-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.apply-transitions-btn {
+  background: #2196f3;
+  color: white;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+.apply-transitions-btn:hover:not(:disabled) {
+  background: #1976d2;
+  transform: translateY(-1px);
+}
+
+.transition-bulk-settings {
+  margin-top: 15px;
+  padding: 15px;
+  background: #e3f2fd;
+  border: 2px solid #2196f3;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.transition-bulk-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.transition-bulk-label span {
+  color: #1565c0;
+}
+
+.bulk-transition-select {
+  padding: 8px 12px;
+  border: 2px solid #2196f3;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+}
+
+.global-text-settings {
+  margin-top: 10px;
+  padding: 15px;
+  background: #fff3e0;
+  border: 2px solid #ff9800;
+  border-radius: 8px;
+}
+
+.global-text-controls {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ff9800;
 }
 
 .subsection-title {
