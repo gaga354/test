@@ -2,6 +2,20 @@
 let images = [];
 let imageIdCounter = 0;
 
+// 전역 텍스트 설정
+let globalText = {
+  enabled: false,
+  content: '',
+  font: 'Arial',
+  size: 48,
+  color: '#ffffff',
+  position: 'bottom',
+  offsetY: 0,
+  bgEnabled: false,
+  bgColor: '#000000',
+  bgOpacity: 0.7
+};
+
 // DOM 요소
 const imageInput = document.getElementById('imageInput');
 const imageList = document.getElementById('imageList');
@@ -52,6 +66,24 @@ const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
 const applyToAllBtn = document.getElementById('applyToAllBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
 const randomAnimationsBtn = document.getElementById('randomAnimationsBtn');
+const removeAnimationsBtn = document.getElementById('removeAnimationsBtn');
+const bulkTransitionType = document.getElementById('bulkTransitionType');
+const applyTransitionsBtn = document.getElementById('applyTransitionsBtn');
+const removeTransitionsBtn = document.getElementById('removeTransitionsBtn');
+
+// 전역 텍스트 DOM 요소
+const globalTextEnabled = document.getElementById('globalTextEnabled');
+const globalTextControls = document.getElementById('globalTextControls');
+const globalTextContent = document.getElementById('globalTextContent');
+const globalTextFont = document.getElementById('globalTextFont');
+const globalTextSize = document.getElementById('globalTextSize');
+const globalTextColor = document.getElementById('globalTextColor');
+const globalTextPosition = document.getElementById('globalTextPosition');
+const globalTextOffsetY = document.getElementById('globalTextOffsetY');
+const globalTextBgEnabled = document.getElementById('globalTextBgEnabled');
+const globalTextBgColor = document.getElementById('globalTextBgColor');
+const globalTextBgOpacity = document.getElementById('globalTextBgOpacity');
+const globalTextBgOpacityValue = document.getElementById('globalTextBgOpacityValue');
 
 // 프리셋 DOM 요소
 const presetNameInput = document.getElementById('presetNameInput');
@@ -384,6 +416,60 @@ function assignRandomAnimations() {
     renderImageList();
     updatePreview();
     alert(`모든 이미지에 랜덤 애니메이션이 배정되었습니다!`);
+  }
+}
+
+// 애니메이션 일괄제거
+function removeAllAnimations() {
+  if (images.length === 0) return;
+  if (confirm(`모든 이미지(${images.length}개)의 애니메이션을 제거하시겠습니까?`)) {
+    images.forEach(img => {
+      if (!img.animation) img.animation = {};
+      img.animation.type = 'none';
+    });
+
+    renderImageList();
+    updatePreview();
+    alert(`모든 이미지의 애니메이션이 제거되었습니다!`);
+  }
+}
+
+// 트랜지션 일괄적용
+function applyTransitionsToAll() {
+  if (images.length === 0) return;
+  const transType = bulkTransitionType.value;
+  const transName = bulkTransitionType.options[bulkTransitionType.selectedIndex].text;
+
+  if (confirm(`모든 이미지(${images.length}개)에 "${transName}" 트랜지션을 적용하시겠습니까?`)) {
+    const preset = transitionPresets[transType];
+
+    images.forEach(img => {
+      if (!img.transition) img.transition = {};
+      img.transition.type = transType;
+      img.transition.duration = preset.duration;
+    });
+
+    renderImageList();
+    updatePreview();
+    updateOutputInfo();
+    alert(`모든 이미지에 "${transName}" 트랜지션이 적용되었습니다!`);
+  }
+}
+
+// 트랜지션 일괄취소
+function removeAllTransitions() {
+  if (images.length === 0) return;
+  if (confirm(`모든 이미지(${images.length}개)의 트랜지션을 제거하시겠습니까?`)) {
+    images.forEach(img => {
+      if (!img.transition) img.transition = {};
+      img.transition.type = 'none';
+      img.transition.duration = 0;
+    });
+
+    renderImageList();
+    updatePreview();
+    updateOutputInfo();
+    alert(`모든 이미지의 트랜지션이 제거되었습니다!`);
   }
 }
 
@@ -933,6 +1019,11 @@ function loadImage(file) {
       updateApplyToAllButton();
       updateOutputInfo();
       updatePreview();
+
+      // 첫 번째 이미지가 추가되면 화면에 맞춤
+      if (images.length === 1) {
+        setTimeout(() => fitToScreen(), 100);
+      }
     };
     img.src = e.target.result;
   };
@@ -1450,6 +1541,9 @@ function updatePreview() {
   // 첫 번째 이미지 그리기 (애니메이션 중간 지점으로 미리보기)
   const previewProgress = firstImage.animation?.type !== 'none' ? 0.5 : 0;
   drawImage(ctx, firstImage, previewProgress);
+
+  // 전역 텍스트 렌더링
+  renderGlobalText(ctx);
 }
 
 // 전환 효과 렌더링 함수
@@ -1686,6 +1780,60 @@ function drawImage(ctx, imageData, progress = 0) {
   }
 }
 
+// 전역 텍스트 렌더링
+function renderGlobalText(ctx) {
+  if (!globalText.enabled || !globalText.content) return;
+
+  ctx.save();
+
+  // 폰트 설정
+  ctx.font = `${globalText.size}px "${globalText.font}"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // 텍스트 위치 계산
+  const textX = canvasWidth / 2;
+  let textY;
+
+  switch (globalText.position) {
+    case 'top':
+      textY = globalText.size / 2 + 20 + globalText.offsetY;
+      break;
+    case 'center':
+      textY = canvasHeight / 2 + globalText.offsetY;
+      break;
+    case 'bottom':
+    default:
+      textY = canvasHeight - globalText.size / 2 - 20 + globalText.offsetY;
+      break;
+  }
+
+  // 배경 그리기 (선택적)
+  if (globalText.bgEnabled) {
+    const metrics = ctx.measureText(globalText.content);
+    const textWidth = metrics.width;
+    const textHeight = globalText.size;
+    const padding = 20;
+
+    ctx.save();
+    ctx.globalAlpha = globalText.bgOpacity;
+    ctx.fillStyle = globalText.bgColor;
+    ctx.fillRect(
+      textX - textWidth / 2 - padding,
+      textY - textHeight / 2 - padding / 2,
+      textWidth + padding * 2,
+      textHeight + padding
+    );
+    ctx.restore();
+  }
+
+  // 텍스트 그리기
+  ctx.fillStyle = globalText.color;
+  ctx.fillText(globalText.content, textX, textY);
+
+  ctx.restore();
+}
+
 // 이미지 위로 이동
 function moveImageUp(imageId) {
   const index = images.findIndex(img => img.id === imageId);
@@ -1747,6 +1895,9 @@ function updateGenerateButton() {
 function updateApplyToAllButton() {
   applyToAllBtn.disabled = images.length === 0;
   randomAnimationsBtn.disabled = images.length === 0;
+  removeAnimationsBtn.disabled = images.length === 0;
+  applyTransitionsBtn.disabled = images.length === 0;
+  removeTransitionsBtn.disabled = images.length === 0;
 }
 
 // 모두 지우기
@@ -1767,12 +1918,68 @@ saveDefaultsBtn.addEventListener('click', saveDefaultSettings);
 applyToAllBtn.addEventListener('click', applyDefaultsToAll);
 resetDefaultsBtn.addEventListener('click', resetDefaultSettings);
 randomAnimationsBtn.addEventListener('click', assignRandomAnimations);
+removeAnimationsBtn.addEventListener('click', removeAllAnimations);
+applyTransitionsBtn.addEventListener('click', applyTransitionsToAll);
+removeTransitionsBtn.addEventListener('click', removeAllTransitions);
 
 // 프리셋 버튼 이벤트
 savePresetBtn.addEventListener('click', savePreset);
 loadPresetBtn.addEventListener('click', loadPreset);
 deletePresetBtn.addEventListener('click', deletePreset);
 presetSelect.addEventListener('change', updatePresetButtons);
+
+// 전역 텍스트 이벤트
+globalTextEnabled.addEventListener('change', (e) => {
+  globalText.enabled = e.target.checked;
+  globalTextControls.style.display = e.target.checked ? 'block' : 'none';
+  updatePreview();
+});
+
+globalTextContent.addEventListener('input', (e) => {
+  globalText.content = e.target.value;
+  updatePreview();
+});
+
+globalTextFont.addEventListener('input', (e) => {
+  globalText.font = e.target.value;
+  updatePreview();
+});
+
+globalTextSize.addEventListener('input', (e) => {
+  globalText.size = parseInt(e.target.value);
+  updatePreview();
+});
+
+globalTextColor.addEventListener('input', (e) => {
+  globalText.color = e.target.value;
+  updatePreview();
+});
+
+globalTextPosition.addEventListener('change', (e) => {
+  globalText.position = e.target.value;
+  updatePreview();
+});
+
+globalTextOffsetY.addEventListener('input', (e) => {
+  globalText.offsetY = parseInt(e.target.value);
+  updatePreview();
+});
+
+globalTextBgEnabled.addEventListener('change', (e) => {
+  globalText.bgEnabled = e.target.checked;
+  updatePreview();
+});
+
+globalTextBgColor.addEventListener('input', (e) => {
+  globalText.bgColor = e.target.value;
+  updatePreview();
+});
+
+globalTextBgOpacity.addEventListener('input', (e) => {
+  globalText.bgOpacity = parseFloat(e.target.value);
+  globalTextBgOpacityValue.textContent = e.target.value;
+  updatePreview();
+});
 
 // 키보드 단축키
 document.addEventListener('keydown', (e) => {
@@ -1978,6 +2185,9 @@ async function generateVideo() {
       // 이미지 그리기 (애니메이션 포함)
       drawImage(ctx, imageData, animProgress);
 
+      // 전역 텍스트 렌더링
+      renderGlobalText(ctx);
+
       // 프레임 대기
       await new Promise(resolve => setTimeout(resolve, frameDelay));
 
@@ -2005,6 +2215,9 @@ async function generateVideo() {
 
           // 전환 효과 렌더링
           renderTransition(ctx, imageData, nextImage, transProgress);
+
+          // 전역 텍스트 렌더링
+          renderGlobalText(ctx);
 
           // 프레임 대기
           await new Promise(resolve => setTimeout(resolve, frameDelay));
