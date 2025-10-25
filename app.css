@@ -446,6 +446,35 @@ header p {
   border-top: 1px dashed #ff9800;
 }
 
+.alignment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 200px;
+  margin: 10px 0;
+}
+
+.align-btn {
+  padding: 12px;
+  background: #f1f2f6;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.2s;
+}
+
+.align-btn:hover {
+  background: #e8e9ed;
+  border-color: #999;
+  transform: scale(1.05);
+}
+
+.align-btn:active {
+  transform: scale(0.95);
+  background: #d1d3d8;
+}
+
 .subsection-title {
   color: #2e7d32;
   font-size: 1rem;
@@ -1097,6 +1126,16 @@ input[type="color"]:hover {
   border-radius: 15px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   margin-bottom: 30px;
+  --card-scale: 1;
+}
+
+.storyboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .storyboard-section h3 {
@@ -1108,7 +1147,75 @@ input[type="color"]:hover {
 .storyboard-hint {
   color: #666;
   font-size: 0.9rem;
-  margin: 0 0 20px 0;
+  margin: 0;
+}
+
+.card-size-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px;
+  background: #f1f2f6;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+}
+
+.card-size-control label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+  margin: 0;
+}
+
+.card-size-control input[type="range"] {
+  width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.card-size-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.card-size-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: #5568d3;
+  transform: scale(1.2);
+}
+
+.card-size-control input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.card-size-control input[type="range"]::-moz-range-thumb:hover {
+  background: #5568d3;
+  transform: scale(1.2);
+}
+
+.card-size-control #cardSizeValue {
+  min-width: 45px;
+  text-align: center;
+  font-weight: 600;
+  color: #667eea;
 }
 
 .image-storyboard {
@@ -1126,17 +1233,19 @@ input[type="color"]:hover {
   overflow: hidden;
   cursor: move;
   transition: all 0.3s ease;
+  transform: scale(var(--card-scale));
+  transform-origin: center;
 }
 
 .storyboard-item:hover {
-  transform: translateY(-5px);
+  transform: scale(var(--card-scale)) translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   border-color: #667eea;
 }
 
 .storyboard-item.dragging {
   opacity: 0.5;
-  transform: scale(0.95);
+  transform: scale(calc(var(--card-scale) * 0.95));
 }
 
 .storyboard-item.drag-over {

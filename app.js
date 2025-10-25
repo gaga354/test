@@ -13,7 +13,15 @@ let globalText = {
   offsetY: 0,
   bgEnabled: false,
   bgColor: '#000000',
-  bgOpacity: 0.7
+  bgOpacity: 0.7,
+  shadowEnabled: false,
+  shadowColor: '#000000',
+  shadowBlur: 4,
+  shadowX: 2,
+  shadowY: 2,
+  strokeEnabled: false,
+  strokeColor: '#000000',
+  strokeWidth: 2
 };
 
 // DOM 요소
@@ -68,8 +76,14 @@ const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
 const randomAnimationsBtn = document.getElementById('randomAnimationsBtn');
 const removeAnimationsBtn = document.getElementById('removeAnimationsBtn');
 const bulkTransitionType = document.getElementById('bulkTransitionType');
+const bulkTransitionDuration = document.getElementById('bulkTransitionDuration');
 const applyTransitionsBtn = document.getElementById('applyTransitionsBtn');
 const removeTransitionsBtn = document.getElementById('removeTransitionsBtn');
+
+// 스토리보드 카드 크기 조절 요소
+const cardSizeSlider = document.getElementById('cardSizeSlider');
+const cardSizeValue = document.getElementById('cardSizeValue');
+const storyboardSection = document.querySelector('.storyboard-section');
 
 // 전역 텍스트 DOM 요소
 const globalTextEnabled = document.getElementById('globalTextEnabled');
@@ -84,6 +98,14 @@ const globalTextBgEnabled = document.getElementById('globalTextBgEnabled');
 const globalTextBgColor = document.getElementById('globalTextBgColor');
 const globalTextBgOpacity = document.getElementById('globalTextBgOpacity');
 const globalTextBgOpacityValue = document.getElementById('globalTextBgOpacityValue');
+const globalTextShadowEnabled = document.getElementById('globalTextShadowEnabled');
+const globalTextShadowColor = document.getElementById('globalTextShadowColor');
+const globalTextShadowBlur = document.getElementById('globalTextShadowBlur');
+const globalTextShadowX = document.getElementById('globalTextShadowX');
+const globalTextShadowY = document.getElementById('globalTextShadowY');
+const globalTextStrokeEnabled = document.getElementById('globalTextStrokeEnabled');
+const globalTextStrokeColor = document.getElementById('globalTextStrokeColor');
+const globalTextStrokeWidth = document.getElementById('globalTextStrokeWidth');
 
 // 프리셋 DOM 요소
 const presetNameInput = document.getElementById('presetNameInput');
@@ -439,14 +461,13 @@ function applyTransitionsToAll() {
   if (images.length === 0) return;
   const transType = bulkTransitionType.value;
   const transName = bulkTransitionType.options[bulkTransitionType.selectedIndex].text;
+  const duration = parseFloat(bulkTransitionDuration.value);
 
-  if (confirm(`모든 이미지(${images.length}개)에 "${transName}" 트랜지션을 적용하시겠습니까?`)) {
-    const preset = transitionPresets[transType];
-
+  if (confirm(`모든 이미지(${images.length}개)에 "${transName}" 트랜지션 (${duration}초)을 적용하시겠습니까?`)) {
     images.forEach(img => {
       if (!img.transition) img.transition = {};
       img.transition.type = transType;
-      img.transition.duration = preset.duration;
+      img.transition.duration = transType === 'none' ? 0 : duration;
     });
 
     renderImageList();
@@ -853,6 +874,9 @@ function startPreviewAnimation() {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     drawImage(ctx, currentImage, progress);
 
+    // 전역 텍스트 렌더링
+    renderGlobalText(ctx);
+
     // 현재 이미지 완료 시 다음 이미지로
     if (progress >= 1.0) {
       previewCurrentImageIndex++;
@@ -882,6 +906,60 @@ loadDefaultSettings();
 loadPresetList();
 initCanvas();
 updateOutputInfo();
+
+// 이미지 정렬 버튼 이벤트
+document.querySelectorAll('.align-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const alignment = btn.dataset.align;
+    applyAlignment(alignment);
+  });
+});
+
+// 정렬 적용 함수
+function applyAlignment(alignment) {
+  const [vertical, horizontal] = alignment.split('-');
+
+  let x = 0, y = 0;
+
+  // 수평 정렬
+  switch (horizontal) {
+    case 'left':
+      x = -50;  // 왼쪽
+      break;
+    case 'center':
+      x = 0;    // 중앙
+      break;
+    case 'right':
+      x = 50;   // 오른쪽
+      break;
+  }
+
+  // 수직 정렬
+  switch (vertical) {
+    case 'top':
+      y = -50;  // 상단
+      break;
+    case 'center':
+      y = 0;    // 중앙
+      break;
+    case 'bottom':
+      y = 50;   // 하단
+      break;
+  }
+
+  // 기본값 입력 필드 업데이트
+  defaultXInput.value = x;
+  defaultYInput.value = y;
+
+  updatePreview();
+}
+
+// 스토리보드 카드 크기 조절 이벤트
+cardSizeSlider.addEventListener('input', (e) => {
+  const scale = e.target.value / 100;
+  cardSizeValue.textContent = e.target.value + '%';
+  storyboardSection.style.setProperty('--card-scale', scale);
+});
 
 // 미리보기 컨트롤 이벤트 리스너
 playPreviewBtn.addEventListener('click', togglePreviewAnimation);
@@ -1827,6 +1905,21 @@ function renderGlobalText(ctx) {
     ctx.restore();
   }
 
+  // 그림자 설정
+  if (globalText.shadowEnabled) {
+    ctx.shadowColor = globalText.shadowColor;
+    ctx.shadowBlur = globalText.shadowBlur;
+    ctx.shadowOffsetX = globalText.shadowX;
+    ctx.shadowOffsetY = globalText.shadowY;
+  }
+
+  // 테두리 그리기 (선택적)
+  if (globalText.strokeEnabled) {
+    ctx.strokeStyle = globalText.strokeColor;
+    ctx.lineWidth = globalText.strokeWidth;
+    ctx.strokeText(globalText.content, textX, textY);
+  }
+
   // 텍스트 그리기
   ctx.fillStyle = globalText.color;
   ctx.fillText(globalText.content, textX, textY);
@@ -1940,7 +2033,7 @@ globalTextContent.addEventListener('input', (e) => {
   updatePreview();
 });
 
-globalTextFont.addEventListener('input', (e) => {
+globalTextFont.addEventListener('change', (e) => {
   globalText.font = e.target.value;
   updatePreview();
 });
@@ -1978,6 +2071,46 @@ globalTextBgColor.addEventListener('input', (e) => {
 globalTextBgOpacity.addEventListener('input', (e) => {
   globalText.bgOpacity = parseFloat(e.target.value);
   globalTextBgOpacityValue.textContent = e.target.value;
+  updatePreview();
+});
+
+globalTextShadowEnabled.addEventListener('change', (e) => {
+  globalText.shadowEnabled = e.target.checked;
+  updatePreview();
+});
+
+globalTextShadowColor.addEventListener('input', (e) => {
+  globalText.shadowColor = e.target.value;
+  updatePreview();
+});
+
+globalTextShadowBlur.addEventListener('input', (e) => {
+  globalText.shadowBlur = parseInt(e.target.value);
+  updatePreview();
+});
+
+globalTextShadowX.addEventListener('input', (e) => {
+  globalText.shadowX = parseInt(e.target.value);
+  updatePreview();
+});
+
+globalTextShadowY.addEventListener('input', (e) => {
+  globalText.shadowY = parseInt(e.target.value);
+  updatePreview();
+});
+
+globalTextStrokeEnabled.addEventListener('change', (e) => {
+  globalText.strokeEnabled = e.target.checked;
+  updatePreview();
+});
+
+globalTextStrokeColor.addEventListener('input', (e) => {
+  globalText.strokeColor = e.target.value;
+  updatePreview();
+});
+
+globalTextStrokeWidth.addEventListener('input', (e) => {
+  globalText.strokeWidth = parseInt(e.target.value);
   updatePreview();
 });
 
