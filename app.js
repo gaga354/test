@@ -44,6 +44,17 @@ const progressText = document.getElementById('progressText');
 let ffmpeg = null;
 let ffmpegLoaded = false;
 
+// 페이지 로드 시 FFmpeg 라이브러리 확인
+window.addEventListener('load', () => {
+  console.log('=== FFmpeg 라이브러리 체크 ===');
+  console.log('window.FFmpeg:', window.FFmpeg);
+  console.log('window.FFmpegWASM:', window.FFmpegWASM);
+  console.log('window.FFmpegUtil:', window.FFmpegUtil);
+  console.log('window 객체의 모든 FFmpeg 관련 키:',
+    Object.keys(window).filter(key => key.toLowerCase().includes('ffmpeg'))
+  );
+});
+
 // 미리보기 컨트롤 요소
 const playPreviewBtn = document.getElementById('playPreviewBtn');
 const zoomInBtn = document.getElementById('zoomInBtn');
@@ -2374,16 +2385,40 @@ async function loadFFmpeg() {
   try {
     progressText.textContent = 'FFmpeg 로딩 중... (최초 1회만)';
 
-    // 전역 객체 확인 및 디버깅
-    console.log('FFmpeg 전역 객체:', typeof window.FFmpeg, window.FFmpeg);
-    console.log('FFmpegUtil 전역 객체:', typeof window.FFmpegUtil, window.FFmpegUtil);
+    // 여러 가능한 전역 객체 이름 확인
+    console.log('=== FFmpeg 로딩 시도 ===');
+    console.log('window.FFmpeg:', window.FFmpeg);
+    console.log('window.FFmpegWASM:', window.FFmpegWASM);
+    console.log('window.FFmpegUtil:', window.FFmpegUtil);
 
-    if (typeof window.FFmpeg === 'undefined') {
-      throw new Error('FFmpeg 라이브러리를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+    let FFmpegClass, fetchFile, toBlobURL;
+
+    // FFmpeg 클래스 찾기
+    if (window.FFmpegWASM && window.FFmpegWASM.FFmpeg) {
+      FFmpegClass = window.FFmpegWASM.FFmpeg;
+      console.log('FFmpeg found at: window.FFmpegWASM.FFmpeg');
+    } else if (window.FFmpeg && window.FFmpeg.FFmpeg) {
+      FFmpegClass = window.FFmpeg.FFmpeg;
+      console.log('FFmpeg found at: window.FFmpeg.FFmpeg');
+    } else if (typeof FFmpeg !== 'undefined' && FFmpeg.FFmpeg) {
+      FFmpegClass = FFmpeg.FFmpeg;
+      console.log('FFmpeg found at: global FFmpeg.FFmpeg');
+    } else {
+      throw new Error('FFmpeg 라이브러리를 찾을 수 없습니다. CDN 로딩에 실패했을 수 있습니다.');
     }
 
-    const { FFmpeg: FFmpegClass } = window.FFmpeg;
-    const { fetchFile, toBlobURL } = window.FFmpegUtil;
+    // Util 함수 찾기
+    if (window.FFmpegUtil) {
+      fetchFile = window.FFmpegUtil.fetchFile;
+      toBlobURL = window.FFmpegUtil.toBlobURL;
+      console.log('FFmpegUtil found at: window.FFmpegUtil');
+    } else if (window.FFmpegWASM && window.FFmpegWASM.fetchFile) {
+      fetchFile = window.FFmpegWASM.fetchFile;
+      toBlobURL = window.FFmpegWASM.toBlobURL;
+      console.log('FFmpegUtil found at: window.FFmpegWASM');
+    } else {
+      throw new Error('FFmpegUtil 라이브러리를 찾을 수 없습니다.');
+    }
 
     ffmpeg = new FFmpegClass();
 
@@ -2399,9 +2434,9 @@ async function loadFFmpeg() {
     });
 
     ffmpegLoaded = true;
-    console.log('FFmpeg loaded successfully');
+    console.log('✅ FFmpeg loaded successfully');
   } catch (error) {
-    console.error('FFmpeg 로딩 실패:', error);
+    console.error('❌ FFmpeg 로딩 실패:', error);
     throw new Error(`FFmpeg 로딩 실패: ${error.message}`);
   }
 }
@@ -2414,7 +2449,16 @@ async function convertToMP4(webmBlob, filename) {
     }
 
     progressText.textContent = 'MP4로 변환 중...';
-    const { fetchFile } = window.FFmpegUtil;
+
+    // fetchFile 함수 찾기
+    let fetchFile;
+    if (window.FFmpegUtil && window.FFmpegUtil.fetchFile) {
+      fetchFile = window.FFmpegUtil.fetchFile;
+    } else if (window.FFmpegWASM && window.FFmpegWASM.fetchFile) {
+      fetchFile = window.FFmpegWASM.fetchFile;
+    } else {
+      throw new Error('fetchFile 함수를 찾을 수 없습니다.');
+    }
 
     // WebM 파일을 FFmpeg에 쓰기
     await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
