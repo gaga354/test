@@ -2295,8 +2295,30 @@ async function generateVideo() {
       }
     } catch (error) {
       console.error('영상 처리 오류:', error);
-      progressText.textContent = '오류: ' + error.message;
-      alert('영상 처리 중 오류가 발생했습니다: ' + error.message);
+
+      // CORS/HTTP 서버 관련 에러인 경우 친절한 안내
+      if (error.message.includes('HTTP 서버') || error.message.includes('origin')) {
+        progressText.textContent = '❌ MP4 변환 실패: 로컬 HTTP 서버 필요';
+        alert(`MP4 변환 실패: 로컬 HTTP 서버가 필요합니다.
+
+해결 방법:
+
+1. Python이 설치되어 있다면:
+   python -m http.server 8000
+
+2. Node.js가 설치되어 있다면:
+   npx http-server
+
+3. VS Code 사용자:
+   Live Server 확장 프로그램 사용
+
+서버 실행 후 http://localhost:8000 (또는 표시된 주소)로 접속하세요.
+
+현재는 WebM 형식으로만 다운로드하실 수 있습니다.`);
+      } else {
+        progressText.textContent = '오류: ' + error.message;
+        alert('영상 처리 중 오류가 발생했습니다:\n\n' + error.message);
+      }
     }
   };
 
@@ -2426,17 +2448,64 @@ async function loadFFmpeg() {
       console.log('FFmpeg:', message);
     });
 
-    // jsdelivr CDN 사용 (버전 0.12.6으로 통일)
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+    // file:// 프로토콜 체크
+    const isFileProtocol = window.location.protocol === 'file:';
+    if (isFileProtocol) {
+      console.warn('⚠️ file:// 프로토콜에서 실행 중입니다. MP4 변환이 제한될 수 있습니다.');
+      console.log('해결 방법:');
+      console.log('1. Python: python -m http.server 8000');
+      console.log('2. Node.js: npx http-server');
+      console.log('3. VS Code: Live Server 확장 프로그램');
+    }
+
+    // CDN 사용 (버전 0.12.6)
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+
+    console.log('Loading FFmpeg core files...');
+    const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+    const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+
+    console.log('Core URLs prepared:', { coreURL, wasmURL });
+
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      coreURL,
+      wasmURL
     });
 
     ffmpegLoaded = true;
     console.log('✅ FFmpeg loaded successfully');
   } catch (error) {
     console.error('❌ FFmpeg 로딩 실패:', error);
+
+    // CORS 에러인 경우 친절한 메시지
+    if (error.message.includes('origin') || error.message.includes('Worker')) {
+      const helpMessage = `
+MP4 변환을 사용하려면 로컬 HTTP 서버가 필요합니다.
+
+다음 방법 중 하나를 선택하세요:
+
+1️⃣ Python (설치되어 있다면):
+   python -m http.server 8000
+   → http://localhost:8000 접속
+
+2️⃣ Node.js (설치되어 있다면):
+   npx http-server
+   → 표시된 주소로 접속
+
+3️⃣ VS Code 사용자:
+   Live Server 확장 프로그램 설치
+   → HTML 파일에서 우클릭 > "Open with Live Server"
+
+현재는 WebM 형식으로만 다운로드 가능합니다.
+      `.trim();
+
+      console.log('\n' + '='.repeat(60));
+      console.log(helpMessage);
+      console.log('='.repeat(60) + '\n');
+
+      throw new Error('MP4 변환은 HTTP 서버에서만 가능합니다. 콘솔의 안내를 참고하세요.');
+    }
+
     throw new Error(`FFmpeg 로딩 실패: ${error.message}`);
   }
 }
