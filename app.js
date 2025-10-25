@@ -2373,12 +2373,26 @@ async function loadFFmpeg() {
 
   try {
     progressText.textContent = 'FFmpeg 로딩 중... (최초 1회만)';
-    const { FFmpeg } = FFmpegWASM;
-    const { fetchFile, toBlobURL } = FFmpegUtil;
 
-    ffmpeg = new FFmpeg();
+    // 전역 객체 확인 및 디버깅
+    console.log('FFmpeg 전역 객체:', typeof window.FFmpeg, window.FFmpeg);
+    console.log('FFmpegUtil 전역 객체:', typeof window.FFmpegUtil, window.FFmpegUtil);
 
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    if (typeof window.FFmpeg === 'undefined') {
+      throw new Error('FFmpeg 라이브러리를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+    }
+
+    const { FFmpeg: FFmpegClass } = window.FFmpeg;
+    const { fetchFile, toBlobURL } = window.FFmpegUtil;
+
+    ffmpeg = new FFmpegClass();
+
+    ffmpeg.on('log', ({ message }) => {
+      console.log('FFmpeg:', message);
+    });
+
+    // jsdelivr CDN 사용 (버전 0.12.6으로 통일)
+    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -2388,7 +2402,7 @@ async function loadFFmpeg() {
     console.log('FFmpeg loaded successfully');
   } catch (error) {
     console.error('FFmpeg 로딩 실패:', error);
-    throw new Error('FFmpeg 로딩 실패. MP4 변환을 사용할 수 없습니다.');
+    throw new Error(`FFmpeg 로딩 실패: ${error.message}`);
   }
 }
 
@@ -2400,7 +2414,7 @@ async function convertToMP4(webmBlob, filename) {
     }
 
     progressText.textContent = 'MP4로 변환 중...';
-    const { fetchFile } = FFmpegUtil;
+    const { fetchFile } = window.FFmpegUtil;
 
     // WebM 파일을 FFmpeg에 쓰기
     await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
