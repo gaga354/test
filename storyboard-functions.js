@@ -2,50 +2,80 @@
 
 // 썸네일 생성 함수
 function generateThumbnail(imageData, width = 400, height = 225) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  try {
+    console.log('썸네일 생성 시작:', imageData.id);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
 
-  // 배경 그리기
-  ctx.fillStyle = imageData.bgColor || '#000';
-  ctx.fillRect(0, 0, width, height);
+    if (!ctx) {
+      console.error('Canvas context를 가져올 수 없습니다');
+      return imageData.src; // 원본 이미지 반환
+    }
 
-  // 임시 캔버스 크기 설정
-  const tempCanvasWidth = canvasWidth;
-  const tempCanvasHeight = canvasHeight;
+    // 배경 그리기
+    ctx.fillStyle = imageData.bgColor || '#000';
+    ctx.fillRect(0, 0, width, height);
 
-  // 스케일 조정
-  const scale = width / canvasWidth;
-  ctx.save();
-  ctx.scale(scale, scale);
+    // canvasWidth, canvasHeight 체크
+    if (typeof canvasWidth === 'undefined' || typeof canvasHeight === 'undefined') {
+      console.error('canvasWidth 또는 canvasHeight가 정의되지 않음');
+      return imageData.src; // 원본 이미지 반환
+    }
 
-  // 이미지 그리기 (중간 진행도로)
-  drawImage(ctx, imageData, 0.5);
+    // 스케일 조정
+    const scale = width / canvasWidth;
+    ctx.save();
+    ctx.scale(scale, scale);
 
-  ctx.restore();
+    // 이미지 그리기 (중간 진행도로)
+    if (typeof drawImage === 'function') {
+      drawImage(ctx, imageData, 0.5);
+    } else {
+      console.error('drawImage 함수를 찾을 수 없습니다');
+      // 간단한 fallback 그리기
+      if (imageData.img) {
+        ctx.drawImage(imageData.img, 0, 0, canvasWidth, canvasHeight);
+      }
+    }
 
-  return canvas.toDataURL('image/jpeg', 0.8);
+    ctx.restore();
+
+    const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+    console.log('썸네일 생성 완료');
+    return dataURL;
+  } catch (error) {
+    console.error('썸네일 생성 오류:', error);
+    // 오류 발생 시 원본 이미지 반환
+    return imageData.src;
+  }
 }
 
 // 스토리보드 아이템 렌더링
 function renderImageList() {
-  imageList.innerHTML = '';
+  console.log('renderImageList 시작, images.length:', images.length);
 
-  if (images.length === 0) {
-    imageList.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">이미지를 업로드하세요</p>';
-    return;
-  }
+  try {
+    imageList.innerHTML = '';
 
-  images.forEach((imageData, index) => {
-    const item = document.createElement('div');
-    item.className = 'storyboard-item';
-    item.draggable = true;
-    item.dataset.id = imageData.id;
-    item.dataset.index = index;
+    if (images.length === 0) {
+      imageList.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">이미지를 업로드하세요</p>';
+      return;
+    }
 
-    // 썸네일 생성
-    const thumbnailSrc = generateThumbnail(imageData);
+    images.forEach((imageData, index) => {
+      try {
+        console.log(`이미지 ${index + 1} 렌더링 중...`);
+        const item = document.createElement('div');
+        item.className = 'storyboard-item';
+        item.draggable = true;
+        item.dataset.id = imageData.id;
+        item.dataset.index = index;
+
+        // 썸네일 생성
+        const thumbnailSrc = generateThumbnail(imageData);
+        console.log(`이미지 ${index + 1} 썸네일 생성 완료`);
 
     // 효과 태그 생성
     const effects = [];
@@ -97,17 +127,27 @@ function renderImageList() {
       }
     });
 
-    // 드래그 이벤트
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragend', handleDragEnd);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragleave', handleDragLeave);
+        // 드래그 이벤트
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragleave', handleDragLeave);
 
-    imageList.appendChild(item);
-  });
+        imageList.appendChild(item);
+        console.log(`이미지 ${index + 1} DOM에 추가 완료`);
+      } catch (error) {
+        console.error(`이미지 ${index + 1} 렌더링 오류:`, error);
+        // 에러가 발생해도 다음 이미지는 계속 처리
+      }
+    });
 
-  updateApplyToAllButton();
+    console.log('renderImageList 완료');
+    updateApplyToAllButton();
+  } catch (error) {
+    console.error('renderImageList 전체 오류:', error);
+    imageList.innerHTML = '<p style="text-align: center; color: #f44; padding: 40px;">이미지 목록 표시 중 오류가 발생했습니다.<br>' + error.message + '</p>';
+  }
 }
 
 // 드래그 앤 드롭 핸들러

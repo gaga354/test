@@ -1046,6 +1046,8 @@ function handleFiles(files) {
 
 // 이미지 로드
 function loadImage(file) {
+  console.log('loadImage 시작:', file.name, file.type, file.size);
+
   // 파일 타입 체크
   if (!file.type.startsWith('image/')) {
     alert(`"${file.name}"은(는) 이미지 파일이 아닙니다.`);
@@ -1063,60 +1065,81 @@ function loadImage(file) {
 
   const reader = new FileReader();
 
-  reader.onerror = () => {
-    alert(`파일 읽기 실패: ${file.name}`);
+  reader.onerror = (error) => {
+    console.error('FileReader 오류:', error);
+    alert(`파일 읽기 실패: ${file.name}\n${error}`);
   };
 
   reader.onload = (e) => {
+    console.log('파일 읽기 완료, 이미지 로드 시작');
     const img = new Image();
 
-    img.onerror = () => {
-      alert(`이미지 로드 실패: ${file.name}`);
+    img.onerror = (error) => {
+      console.error('이미지 로드 오류:', error);
+      alert(`이미지 로드 실패: ${file.name}\n이미지 형식이 지원되지 않을 수 있습니다.`);
     };
 
     img.onload = () => {
-      const defaults = getDefaultSettings();
-      const imageData = {
-        id: imageIdCounter++,
-        src: e.target.result,
-        img: img,
-        duration: defaults.duration,
-        width: defaults.width,
-        height: defaults.height,
-        x: defaults.x,
-        y: defaults.y,
-        fit: defaults.fit,
-        rotation: 0,
-        bgColor: defaults.bgColor,
-        bgEnabled: defaults.bgEnabled,
-        borderEnabled: defaults.borderEnabled,
-        borderColor: defaults.borderColor,
-        borderWidth: defaults.borderWidth,
-        shadowEnabled: defaults.shadowEnabled,
-        shadowColor: defaults.shadowColor,
-        shadowBlur: defaults.shadowBlur,
-        shadowX: defaults.shadowX,
-        shadowY: defaults.shadowY,
-        filters: defaults.filters ? { ...defaults.filters } : { ...INITIAL_DEFAULTS.filters },
-        animation: defaults.animation ? { ...defaults.animation } : { ...INITIAL_DEFAULTS.animation },
-        transition: defaults.transition ? { ...defaults.transition } : { ...INITIAL_DEFAULTS.transition },
-        text: defaults.text ? { ...defaults.text } : { ...INITIAL_DEFAULTS.text }
-      };
-      images.push(imageData);
-      renderImageList();
-      updateGenerateButton();
-      updateApplyToAllButton();
-      updateOutputInfo();
-      updatePreview();
+      console.log('이미지 로드 성공:', img.width, 'x', img.height);
+      try {
+        const defaults = getDefaultSettings();
+        const imageData = {
+          id: imageIdCounter++,
+          src: e.target.result,
+          img: img,
+          duration: defaults.duration,
+          width: defaults.width,
+          height: defaults.height,
+          x: defaults.x,
+          y: defaults.y,
+          fit: defaults.fit,
+          rotation: 0,
+          bgColor: defaults.bgColor,
+          bgEnabled: defaults.bgEnabled,
+          borderEnabled: defaults.borderEnabled,
+          borderColor: defaults.borderColor,
+          borderWidth: defaults.borderWidth,
+          shadowEnabled: defaults.shadowEnabled,
+          shadowColor: defaults.shadowColor,
+          shadowBlur: defaults.shadowBlur,
+          shadowX: defaults.shadowX,
+          shadowY: defaults.shadowY,
+          filters: defaults.filters ? { ...defaults.filters } : { ...INITIAL_DEFAULTS.filters },
+          animation: defaults.animation ? { ...defaults.animation } : { ...INITIAL_DEFAULTS.animation },
+          transition: defaults.transition ? { ...defaults.transition } : { ...INITIAL_DEFAULTS.transition },
+          text: defaults.text ? { ...defaults.text } : { ...INITIAL_DEFAULTS.text }
+        };
 
-      // 첫 번째 이미지가 추가되면 화면에 맞춤
-      if (images.length === 1) {
-        setTimeout(() => fitToScreen(), 100);
+        console.log('이미지 데이터 생성 완료, images 배열에 추가');
+        images.push(imageData);
+
+        console.log('renderImageList 호출');
+        renderImageList();
+        updateGenerateButton();
+        updateApplyToAllButton();
+        updateOutputInfo();
+        updatePreview();
+
+        console.log('이미지 추가 완료, 현재 images.length:', images.length);
+
+        // 첫 번째 이미지가 추가되면 화면에 맞춤
+        if (images.length === 1) {
+          setTimeout(() => fitToScreen(), 100);
+        }
+      } catch (error) {
+        console.error('이미지 처리 중 오류:', error);
+        alert(`이미지 처리 실패: ${file.name}\n${error.message}`);
       }
     };
     img.src = e.target.result;
   };
-  reader.readAsDataURL(file);
+
+  try {
+    reader.readAsDataURL(file);
+  } catch (error) {
+    console.error('파일 읽기 시작 오류:', error);
+    alert(`파일 읽기 실패: ${file.name}\n${error.message}`);
+  }
 }
 
 // 이미지 리스트 렌더링
