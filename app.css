@@ -121,6 +121,43 @@ header p {
   color: #333;
 }
 
+/* 접기/펼치기 헤더 */
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s ease;
+  padding: 10px;
+  margin: -10px -10px 15px -10px;
+  border-radius: 8px;
+}
+
+.collapsible-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.collapse-icon {
+  font-size: 0.9rem;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+.collapsible-header.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.collapsible-content.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
 .output-settings-section {
   background: #e3f2fd;
   border: 2px solid #2196f3;

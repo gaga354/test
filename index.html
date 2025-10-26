@@ -28,8 +28,12 @@
     </div>
 
     <div class="output-settings-section">
-      <h3>🎬 영상 출력 설정</h3>
+      <h3 class="collapsible-header" id="outputSettingsHeader">
+        <span>🎬 영상 출력 설정</span>
+        <span class="collapse-icon">▼</span>
+      </h3>
 
+      <div class="collapsible-content" id="outputSettingsContent" style="display: none;">
       <div class="resolution-settings">
         <h4>해상도</h4>
         <select id="resolutionPreset">
@@ -104,10 +108,15 @@
         </div>
         <p class="info-note">※ 실제 용량은 내용에 따라 다를 수 있습니다</p>
       </div>
+      </div>
     </div>
 
     <div class="common-settings">
-      <h3>공통 이미지 설정 (기본값)</h3>
+      <h3 class="collapsible-header" id="commonSettingsHeader">
+        <span>공통 이미지 설정 (기본값)</span>
+        <span class="collapse-icon">▼</span>
+      </h3>
+      <div class="collapsible-content" id="commonSettingsContent" style="display: none;">
       <p class="settings-description">새로 추가되는 이미지에 적용될 기본값입니다. 기존 이미지에도 일괄 적용할 수 있습니다.</p>
 
       <h4 class="subsection-title">기본 설정</h4>
@@ -266,6 +275,8 @@
           <button id="applyTransitionsBtn" class="apply-transitions-btn" disabled>적용</button>
         </label>
         <button id="removeTransitionsBtn" class="remove-transitions-btn" disabled>🚫 트랜지션 일괄취소</button>
+      </div>
+
       </div>
 
       <div class="preset-section">

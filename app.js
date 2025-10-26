@@ -2514,3 +2514,57 @@ outputFormatSelect.addEventListener('change', () => {
     formatNote.textContent = '※ WebM과 MP4 두 파일이 모두 다운로드됩니다 (+10-20초).';
   }
 });
+
+// 접기/펼치기 기능
+function initCollapsibleSections() {
+  const outputHeader = document.getElementById('outputSettingsHeader');
+  const outputContent = document.getElementById('outputSettingsContent');
+  const commonHeader = document.getElementById('commonSettingsHeader');
+  const commonContent = document.getElementById('commonSettingsContent');
+
+  // 초기 상태: 접힌 상태로 시작
+  outputHeader.classList.add('collapsed');
+  commonHeader.classList.add('collapsed');
+
+  // 클릭 이벤트 리스너
+  outputHeader.addEventListener('click', () => {
+    toggleSection(outputHeader, outputContent);
+  });
+
+  commonHeader.addEventListener('click', () => {
+    toggleSection(commonHeader, commonContent);
+  });
+}
+
+function toggleSection(header, content) {
+  const isCollapsed = header.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    // 펼치기
+    header.classList.remove('collapsed');
+    content.style.display = 'block';
+    // 부드러운 애니메이션을 위해 높이 계산
+    requestAnimationFrame(() => {
+      content.style.maxHeight = content.scrollHeight + 'px';
+      content.style.opacity = '1';
+    });
+  } else {
+    // 접기
+    header.classList.add('collapsed');
+    content.style.maxHeight = '0';
+    content.style.opacity = '0';
+    setTimeout(() => {
+      content.style.display = 'none';
+    }, 300); // CSS transition 시간과 맞춤
+  }
+}
+
+// 페이지 로드 시 초기화
+document.addEventListener('DOMContentLoaded', () => {
+  initCollapsibleSections();
+
+  // 미리보기 캔버스를 화면에 맞춤 (초기값)
+  setTimeout(() => {
+    fitToScreen();
+  }, 100); // DOM이 완전히 렌더링된 후 실행
+});
