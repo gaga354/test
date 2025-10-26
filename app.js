@@ -2588,6 +2588,77 @@ function toggleSection(header, content) {
   }
 }
 
+// 디버그 패널 관련
+const debugPanel = document.getElementById('debugPanel');
+const debugLog = document.getElementById('debugLog');
+const toggleDebugBtn = document.getElementById('toggleDebugBtn');
+const closeDebugBtn = document.getElementById('closeDebugBtn');
+const clearDebugBtn = document.getElementById('clearDebugBtn');
+
+// 디버그 로그 함수
+function debugLogToScreen(message, type = 'log') {
+  if (!debugLog) return;
+
+  const entry = document.createElement('div');
+  entry.className = `debug-log-entry ${type}`;
+
+  const time = new Date().toLocaleTimeString();
+  entry.innerHTML = `<span class="debug-time">${time}</span><span>${message}</span>`;
+
+  debugLog.appendChild(entry);
+  debugLog.scrollTop = debugLog.scrollHeight;
+
+  // 100개 이상의 로그는 오래된 것부터 제거
+  if (debugLog.children.length > 100) {
+    debugLog.removeChild(debugLog.firstChild);
+  }
+}
+
+// console.log 가로채기
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+
+console.log = function(...args) {
+  originalLog.apply(console, args);
+  debugLogToScreen(args.join(' '), 'log');
+};
+
+console.error = function(...args) {
+  originalError.apply(console, args);
+  debugLogToScreen(args.join(' '), 'error');
+};
+
+console.warn = function(...args) {
+  originalWarn.apply(console, args);
+  debugLogToScreen(args.join(' '), 'warn');
+};
+
+// 디버그 패널 토글
+if (toggleDebugBtn) {
+  toggleDebugBtn.addEventListener('click', () => {
+    if (debugPanel.style.display === 'none' || !debugPanel.style.display) {
+      debugPanel.style.display = 'flex';
+      debugLogToScreen('=== 디버그 모드 시작 ===', 'log');
+    } else {
+      debugPanel.style.display = 'none';
+    }
+  });
+}
+
+if (closeDebugBtn) {
+  closeDebugBtn.addEventListener('click', () => {
+    debugPanel.style.display = 'none';
+  });
+}
+
+if (clearDebugBtn) {
+  clearDebugBtn.addEventListener('click', () => {
+    debugLog.innerHTML = '';
+    debugLogToScreen('로그 초기화됨', 'log');
+  });
+}
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
   initCollapsibleSections();
@@ -2596,4 +2667,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     fitToScreen();
   }, 100); // DOM이 완전히 렌더링된 후 실행
+
+  debugLogToScreen('페이지 로드 완료', 'log');
 });
