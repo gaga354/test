@@ -659,12 +659,12 @@ function zoomReset() {
 // 화면에 맞춤
 function fitToScreen() {
   const containerWidth = canvasContainer.parentElement.clientWidth - 40; // padding 고려
-  const containerHeight = window.innerHeight * 0.6; // 화면의 60% 높이
+  const containerHeight = window.innerHeight * 0.35; // 화면의 35% 높이로 축소
 
   const widthRatio = containerWidth / canvasWidth;
   const heightRatio = containerHeight / canvasHeight;
 
-  previewZoom = Math.min(widthRatio, heightRatio, 1.0); // 최대 100%
+  previewZoom = Math.min(widthRatio, heightRatio, 0.5); // 최대 50%로 제한
   applyPreviewZoom();
 }
 
@@ -2522,9 +2522,15 @@ function initCollapsibleSections() {
   const commonHeader = document.getElementById('commonSettingsHeader');
   const commonContent = document.getElementById('commonSettingsContent');
 
-  // 초기 상태: 접힌 상태로 시작
+  // 초기 상태: 접힌 상태로 설정
   outputHeader.classList.add('collapsed');
   commonHeader.classList.add('collapsed');
+
+  // 초기 스타일 설정
+  outputContent.style.maxHeight = '0';
+  outputContent.style.opacity = '0';
+  commonContent.style.maxHeight = '0';
+  commonContent.style.opacity = '0';
 
   // 클릭 이벤트 리스너
   outputHeader.addEventListener('click', () => {
@@ -2544,10 +2550,10 @@ function toggleSection(header, content) {
     header.classList.remove('collapsed');
     content.style.display = 'block';
     // 부드러운 애니메이션을 위해 높이 계산
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       content.style.maxHeight = content.scrollHeight + 'px';
       content.style.opacity = '1';
-    });
+    }, 10);
   } else {
     // 접기
     header.classList.add('collapsed');
