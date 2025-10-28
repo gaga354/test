@@ -9,6 +9,7 @@ let globalText = {
   font: 'Arial',
   size: 48,
   color: '#ffffff',
+  transparent: false,
   position: 'bottom',
   offsetY: 0,
   bgEnabled: false,
@@ -117,6 +118,7 @@ const globalTextShadowY = document.getElementById('globalTextShadowY');
 const globalTextStrokeEnabled = document.getElementById('globalTextStrokeEnabled');
 const globalTextStrokeColor = document.getElementById('globalTextStrokeColor');
 const globalTextStrokeWidth = document.getElementById('globalTextStrokeWidth');
+const globalTextTransparent = document.getElementById('globalTextTransparent');
 
 // 프리셋 DOM 요소
 const presetNameInput = document.getElementById('presetNameInput');
@@ -1954,9 +1956,11 @@ function renderGlobalText(ctx) {
     ctx.strokeText(globalText.content, textX, textY);
   }
 
-  // 텍스트 그리기
-  ctx.fillStyle = globalText.color;
-  ctx.fillText(globalText.content, textX, textY);
+  // 텍스트 그리기 (투명 모드일 경우 건너뛰기)
+  if (!globalText.transparent) {
+    ctx.fillStyle = globalText.color;
+    ctx.fillText(globalText.content, textX, textY);
+  }
 
   ctx.restore();
 }
@@ -2060,92 +2064,116 @@ globalTextEnabled.addEventListener('change', (e) => {
   globalText.enabled = e.target.checked;
   globalTextControls.style.display = e.target.checked ? 'block' : 'none';
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextContent.addEventListener('input', (e) => {
   globalText.content = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextFont.addEventListener('change', (e) => {
   globalText.font = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextSize.addEventListener('input', (e) => {
   globalText.size = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextColor.addEventListener('input', (e) => {
   globalText.color = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextPosition.addEventListener('change', (e) => {
   globalText.position = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextOffsetY.addEventListener('input', (e) => {
   globalText.offsetY = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextBgEnabled.addEventListener('change', (e) => {
   globalText.bgEnabled = e.target.checked;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextBgColor.addEventListener('input', (e) => {
   globalText.bgColor = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextBgOpacity.addEventListener('input', (e) => {
   globalText.bgOpacity = parseFloat(e.target.value);
   globalTextBgOpacityValue.textContent = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextShadowEnabled.addEventListener('change', (e) => {
   globalText.shadowEnabled = e.target.checked;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextShadowColor.addEventListener('input', (e) => {
   globalText.shadowColor = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextShadowBlur.addEventListener('input', (e) => {
   globalText.shadowBlur = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextShadowX.addEventListener('input', (e) => {
   globalText.shadowX = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextShadowY.addEventListener('input', (e) => {
   globalText.shadowY = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextStrokeEnabled.addEventListener('change', (e) => {
   globalText.strokeEnabled = e.target.checked;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextStrokeColor.addEventListener('input', (e) => {
   globalText.strokeColor = e.target.value;
   updatePreview();
+  saveGlobalTextSettings();
 });
 
 globalTextStrokeWidth.addEventListener('input', (e) => {
   globalText.strokeWidth = parseInt(e.target.value);
   updatePreview();
+  saveGlobalTextSettings();
+});
+
+globalTextTransparent.addEventListener('change', (e) => {
+  globalText.transparent = e.target.checked;
+  updatePreview();
+  saveGlobalTextSettings();
 });
 
 // 키보드 단축키
@@ -2659,9 +2687,61 @@ if (clearDebugBtn) {
   });
 }
 
+// 전역 텍스트 설정 저장
+function saveGlobalTextSettings() {
+  try {
+    localStorage.setItem('globalTextSettings', JSON.stringify(globalText));
+  } catch (e) {
+    console.error('전역 텍스트 설정 저장 실패:', e);
+  }
+}
+
+// 전역 텍스트 설정 복원
+function loadGlobalTextSettings() {
+  try {
+    const saved = localStorage.getItem('globalTextSettings');
+    if (saved) {
+      const settings = JSON.parse(saved);
+
+      // globalText 객체 업데이트
+      Object.assign(globalText, settings);
+
+      // UI 요소 업데이트
+      globalTextEnabled.checked = globalText.enabled;
+      globalTextControls.style.display = globalText.enabled ? 'block' : 'none';
+      globalTextContent.value = globalText.content;
+      globalTextFont.value = globalText.font;
+      globalTextSize.value = globalText.size;
+      globalTextColor.value = globalText.color;
+      globalTextTransparent.checked = globalText.transparent;
+      globalTextPosition.value = globalText.position;
+      globalTextOffsetY.value = globalText.offsetY;
+      globalTextBgEnabled.checked = globalText.bgEnabled;
+      globalTextBgColor.value = globalText.bgColor;
+      globalTextBgOpacity.value = globalText.bgOpacity;
+      globalTextBgOpacityValue.textContent = globalText.bgOpacity;
+      globalTextShadowEnabled.checked = globalText.shadowEnabled;
+      globalTextShadowColor.value = globalText.shadowColor;
+      globalTextShadowBlur.value = globalText.shadowBlur;
+      globalTextShadowX.value = globalText.shadowX;
+      globalTextShadowY.value = globalText.shadowY;
+      globalTextStrokeEnabled.checked = globalText.strokeEnabled;
+      globalTextStrokeColor.value = globalText.strokeColor;
+      globalTextStrokeWidth.value = globalText.strokeWidth;
+
+      updatePreview();
+    }
+  } catch (e) {
+    console.error('전역 텍스트 설정 복원 실패:', e);
+  }
+}
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
   initCollapsibleSections();
+
+  // 전역 텍스트 설정 복원
+  loadGlobalTextSettings();
 
   // 미리보기 캔버스를 화면에 맞춤 (초기값)
   setTimeout(() => {
